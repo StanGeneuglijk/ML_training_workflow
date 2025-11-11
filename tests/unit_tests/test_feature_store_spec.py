@@ -1,0 +1,227 @@
+"""
+Unit tests for feature store specification.
+"""
+from __future__ import annotations
+
+import pytest
+from datetime import datetime
+
+from specs import FeatureStoreSpec, FeatureStoreSpecBuilder
+
+
+class TestFeatureStoreSpec:
+    """Tests for FeatureStoreSpec."""
+    
+    def test_feature_store_spec_defaults(self):
+        """Test default values of FeatureStoreSpec."""
+        spec = FeatureStoreSpec()
+        
+        assert spec.enabled is False
+        assert spec.repo_path == "feature_repo"
+        assert spec.n_features == 20
+        assert spec.offline_store_type == "file"
+        assert spec.online_store_type is None
+        assert spec.feature_view_name == "classification_features"
+        assert spec.use_full_feature_names is False
+        assert spec.initialize_on_start is True
+        assert spec.force_recreate is False
+    
+    def test_feature_store_spec_custom_values(self):
+        """Test FeatureStoreSpec with custom values."""
+        spec = FeatureStoreSpec(
+            enabled=True,
+            repo_path="custom_repo",
+            n_features=30,
+            offline_store_type="spark",
+            online_store_type="redis",
+            feature_view_name="custom_features",
+            use_full_feature_names=True,
+            force_recreate=True
+        )
+        
+        assert spec.enabled is True
+        assert spec.repo_path == "custom_repo"
+        assert spec.n_features == 30
+        assert spec.offline_store_type == "spark"
+        assert spec.online_store_type == "redis"
+        assert spec.feature_view_name == "custom_features"
+        assert spec.use_full_feature_names is True
+        assert spec.force_recreate is True
+    
+    def test_feature_store_spec_validation_n_features(self):
+        """Test n_features validation."""
+        # Test minimum
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(n_features=0)
+        
+        # Test maximum
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(n_features=1001)
+        
+        # Test valid values
+        spec = FeatureStoreSpec(n_features=1)
+        assert spec.n_features == 1
+        
+        spec = FeatureStoreSpec(n_features=1000)
+        assert spec.n_features == 1000
+    
+    def test_feature_store_spec_validation_repo_path(self):
+        """Test repo_path validation."""
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(repo_path="")
+        
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(repo_path="   ")
+    
+    def test_feature_store_spec_validation_feature_view_name(self):
+        """Test feature_view_name validation."""
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(feature_view_name="")
+        
+        with pytest.raises(ValueError):
+            FeatureStoreSpec(feature_view_name="   ")
+    
+    def test_get_feature_references(self):
+        """Test get_feature_references method."""
+        spec = FeatureStoreSpec(n_features=5, feature_view_name="test_features")
+        
+        refs = spec.get_feature_references()
+        
+        assert len(refs) == 6  # 5 features + 1 target
+        assert refs[0] == "test_features:feature_0"
+        assert refs[4] == "test_features:feature_4"
+        assert refs[5] == "test_features:target"
+    
+    def test_should_initialize(self):
+        """Test should_initialize method."""
+        # Enabled and initialize_on_start=True
+        spec = FeatureStoreSpec(enabled=True, initialize_on_start=True)
+        assert spec.should_initialize() is True
+        
+        # Enabled but initialize_on_start=False
+        spec = FeatureStoreSpec(enabled=True, initialize_on_start=False)
+        assert spec.should_initialize() is False
+        
+        # Disabled
+        spec = FeatureStoreSpec(enabled=False, initialize_on_start=True)
+        assert spec.should_initialize() is False
+    
+    def test_should_materialize(self):
+        """Test should_materialize method."""
+        # All conditions met
+        spec = FeatureStoreSpec(
+            enabled=True,
+            materialize_online=True,
+            online_store_type="redis"
+        )
+        assert spec.should_materialize() is True
+        
+        # No online store
+        spec = FeatureStoreSpec(
+            enabled=True,
+            materialize_online=True,
+            online_store_type=None
+        )
+        assert spec.should_materialize() is False
+        
+        # Disabled
+        spec = FeatureStoreSpec(
+            enabled=False,
+            materialize_online=True,
+            online_store_type="redis"
+        )
+        assert spec.should_materialize() is False
+
+
+class TestFeatureStoreSpecBuilder:
+    """Tests for FeatureStoreSpecBuilder."""
+    
+    def test_builder_defaults(self):
+        """Test builder with default values."""
+        spec = FeatureStoreSpecBuilder().build()
+        
+        assert spec.enabled is False
+        assert spec.repo_path == "feature_repo"
+        assert spec.n_features == 20
+    
+    def test_builder_enable(self):
+        """Test builder enable method."""
+        spec = FeatureStoreSpecBuilder().enable().build()
+        assert spec.enabled is True
+        
+        spec = FeatureStoreSpecBuilder().enable().disable().build()
+        assert spec.enabled is False
+    
+    def test_builder_set_repo_path(self):
+        """Test builder set_repo_path method."""
+        spec = FeatureStoreSpecBuilder().set_repo_path("my_repo").build()
+        assert spec.repo_path == "my_repo"
+    
+    def test_builder_set_n_features(self):
+        """Test builder set_n_features method."""
+        spec = FeatureStoreSpecBuilder().set_n_features(50).build()
+        assert spec.n_features == 50
+    
+    def test_builder_set_offline_store(self):
+        """Test builder set_offline_store method."""
+        spec = FeatureStoreSpecBuilder().set_offline_store("spark").build()
+        assert spec.offline_store_type == "spark"
+    
+    def test_builder_set_online_store(self):
+        """Test builder set_online_store method."""
+        spec = FeatureStoreSpecBuilder().set_online_store("redis").build()
+        assert spec.online_store_type == "redis"
+    
+    def test_builder_set_feature_view(self):
+        """Test builder set_feature_view method."""
+        spec = FeatureStoreSpecBuilder().set_feature_view("my_features").build()
+        assert spec.feature_view_name == "my_features"
+    
+    def test_builder_use_full_names(self):
+        """Test builder use_full_names method."""
+        spec = FeatureStoreSpecBuilder().use_full_names(True).build()
+        assert spec.use_full_feature_names is True
+    
+    def test_builder_set_timestamp(self):
+        """Test builder set_timestamp method."""
+        ts = datetime(2024, 1, 1, 12, 0, 0)
+        spec = FeatureStoreSpecBuilder().set_timestamp(ts).build()
+        assert spec.timestamp == ts
+    
+    def test_builder_set_force_recreate(self):
+        """Test builder set_force_recreate method."""
+        spec = FeatureStoreSpecBuilder().set_force_recreate(True).build()
+        assert spec.force_recreate is True
+    
+    def test_builder_enable_materialization(self):
+        """Test builder enable_materialization method."""
+        spec = FeatureStoreSpecBuilder().enable_materialization().build()
+        assert spec.materialize_online is True
+    
+    def test_builder_set_sample_indices(self):
+        """Test builder set_sample_indices method."""
+        indices = [0, 1, 2, 3]
+        spec = FeatureStoreSpecBuilder().set_sample_indices(indices).build()
+        assert spec.sample_indices == indices
+    
+    def test_builder_chaining(self):
+        """Test builder method chaining."""
+        spec = (FeatureStoreSpecBuilder()
+            .enable()
+            .set_repo_path("test_repo")
+            .set_n_features(15)
+            .set_offline_store("bigquery")
+            .set_online_store("redis")
+            .use_full_names(True)
+            .enable_materialization()
+            .build()
+        )
+        
+        assert spec.enabled is True
+        assert spec.repo_path == "test_repo"
+        assert spec.n_features == 15
+        assert spec.offline_store_type == "bigquery"
+        assert spec.online_store_type == "redis"
+        assert spec.use_full_feature_names is True
+        assert spec.materialize_online is True
+
