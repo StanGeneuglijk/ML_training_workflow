@@ -886,6 +886,46 @@ notebook = ["ipython (>=8,<10)", "ipywidgets (>=8,<9)"]
 openai = ["httpx", "langchain-openai ; python_version > \"3.7\"", "openai"]
 
 [[package]]
+name = "delta-spark"
+version = "3.3.2"
+description = "Python APIs for using Delta Lake with Apache Spark"
+optional = false
+python-versions = ">=3.6"
+groups = ["main"]
+files = [
+    {file = "delta_spark-3.3.2-py3-none-any.whl", hash = "sha256:0a34c720b4368f1655e2348e380b5b3baaca0f2b3d519a3198208f00f65e4062"},
+    {file = "delta_spark-3.3.2.tar.gz", hash = "sha256:f3e89ec4a15a541988f9d6496016a67cf619475e8eeca71da5e073f6ba0da845"},
+]
+
+[package.dependencies]
+importlib_metadata = ">=1.0.0"
+pyspark = ">=3.5.3,<3.6.0"
+
+[[package]]
+name = "deltalake"
+version = "0.19.2"
+description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "deltalake-0.19.2-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:471add9cbde0b3c6e4d0fa4f752fa0fbd661039dc59c3c0c986fd40beb9f6958"},
+    {file = "deltalake-0.19.2-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:2ef9abe0a5b33dff307eb43051d0e24bdf35e029decf1467ff2d9a1c103c1672"},
+    {file = "deltalake-0.19.2-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7ba87501b8d4b589caf256b7676f5cf77494aa37a2e7dc82771ceb3ec032e02f"},
+    {file = "deltalake-0.19.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:972d1d0a800bc8d1111a3fd0db242ed8406e2a2b4ce0777111d483eccca71c2b"},
+    {file = "deltalake-0.19.2-cp38-abi3-win_amd64.whl", hash = "sha256:badab7d9aa1797a77b941b37894407d9a43719e46c5f0c91ee0ffacd182bb6c1"},
+    {file = "deltalake-0.19.2.tar.gz", hash = "sha256:551026f6f50d265102f5698d389cbbe9163a0de0618bee1380aeed667b5a28cb"},
+]
+
+[package.dependencies]
+pyarrow = ">=16"
+
+[package.extras]
+devel = ["azure-storage-blob (==12.20.0)", "mypy (==1.10.1)", "packaging (>=20)", "pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-timeout", "ruff (==0.5.2)", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "wheel"]
+pandas = ["pandas"]
+pyspark = ["delta-spark", "numpy (==1.22.2)", "pyspark"]
+
+[[package]]
 name = "dill"
 version = "0.3.9"
 description = "serialize all of Python"
@@ -3088,6 +3128,18 @@ files = [
 ]
 
 [[package]]
+name = "py4j"
+version = "0.10.9.7"
+description = "Enables Python programs to dynamically access arbitrary Java objects"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "py4j-0.10.9.7-py2.py3-none-any.whl", hash = "sha256:85defdfd2b2376eb3abf5ca6474b51ab7e0de341c75a02f46dc9b5976f5a5c1b"},
+    {file = "py4j-0.10.9.7.tar.gz", hash = "sha256:0b6e5315bb3ada5cf62ac651d107bb2ebc02def3dee9d9548e3baac644ea8dbb"},
+]
+
+[[package]]
 name = "pyarrow"
 version = "19.0.1"
 description = "Python library for Apache Arrow"
@@ -3378,6 +3430,27 @@ files = [
 
 [package.extras]
 diagrams = ["jinja2", "railroad-diagrams"]
+
+[[package]]
+name = "pyspark"
+version = "3.5.7"
+description = "Apache Spark Python API"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pyspark-3.5.7.tar.gz", hash = "sha256:80e36514e0c5c126d35a26adf4f405cd4a69de96a8ea8a3c1e9a65fce2fb4eaa"},
+]
+
+[package.dependencies]
+py4j = "0.10.9.7"
+
+[package.extras]
+connect = ["googleapis-common-protos (>=1.56.4)", "grpcio (>=1.56.0)", "grpcio-status (>=1.56.0)", "numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
+ml = ["numpy (>=1.15,<2)"]
+mllib = ["numpy (>=1.15,<2)"]
+pandas-on-spark = ["numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
+sql = ["numpy (>=1.15,<2)", "pandas (>=1.0.5)", "pyarrow (>=4.0.0)"]
 
 [[package]]
 name = "pytest"
@@ -4964,4 +5037,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.14"
-content-hash = "7d5792497b1a95bfd53f0188265a99fcaa5e9b60ac726a857460923e7a3ae216"
+content-hash = "4543246bfcf774b6448615acab91d43bfde49319a13205344c4d4fbb87e2e650"

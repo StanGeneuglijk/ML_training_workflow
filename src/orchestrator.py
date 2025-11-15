@@ -127,16 +127,94 @@ def run_ml_workflow(
             logger.info("Initializing Feast feature store")
             feast_manager = create_feast_manager(
                 repo_path=feature_store_spec.repo_path,
-                n_features=feature_store_spec.n_features,
+                project_name=feature_store_spec.project_name,
                 initialize=feature_store_spec.should_initialize(),
-                force_recreate=feature_store_spec.force_recreate
+                offline_store_type=feature_store_spec.offline_store_type,
             )
+            
+            # Register feature view if not already registered
+            if feature_store_spec.should_initialize():
+                from feature_store.data_sources import create_file_source
+                from feature_store.feature_definitions import create_entity, create_feature_view, create_schema
+                from data.delta_lake import get_delta_path
+                from feast import Field
+                from feast.types import Float64, Int64
+                from feast.data_format import DeltaFormat
+                
+                logger.info("Registering feature view: %s", feature_store_spec.feature_view_name)
+                
+                # Create and register entity first (required for Feast)
+                entity = create_entity(name="sample", join_keys=["sample_index"])
+                feast_manager.store.apply([entity])
+                logger.info("Registered entity: sample")
+                
+                # Create data source for Delta Lake
+                delta_path = get_delta_path(feature_store_spec.dataset_name)
+                data_source = create_file_source(
+                    path=delta_path,
+                    timestamp_field="ingested_at",
+                    file_format=DeltaFormat()
+                )
+                
+                # Build schema: features + target
+                n_features = feature_store_spec.get_n_features()
+                feature_names = [f"feature_{i}" for i in range(n_features)]
+                schema = create_schema(feature_names, default_type=Float64)
+                schema.append(Field(name="target", dtype=Int64))
+                
+                # Create and register feature view
+                feature_view = create_feature_view(
+                    view_name=feature_store_spec.feature_view_name,
+                    source=data_source,
+                    schema=schema,
+                    entity=entity  # Use the explicitly created entity
+                )
+                feast_manager.register_feature_view(feature_view)
+            
+            # Build entity DataFrame for feature retrieval
+            if feature_store_spec.sample_indices is None:
+                # Get all sample indices from Delta Lake
+                sample_indices = feast_manager.get_entity_values(
+                    entity_column="sample_index",
+                    dataset_name=feature_store_spec.dataset_name
+                )
+            else:
+                sample_indices = feature_store_spec.sample_indices
+            
+            # Create entity DataFrame for feature retrieval
+            # Use a timestamp that's after all data timestamps to ensure all rows are retrieved
+            if feature_store_spec.timestamp:
+                event_timestamp = feature_store_spec.timestamp
+            else:
+                # Get the latest timestamp from data and add a small buffer
+                from data.delta_lake import get_delta_path
+                from deltalake import DeltaTable
+                delta_path = get_delta_path(feature_store_spec.dataset_name)
+                dt = DeltaTable(str(delta_path))
+                data_df = dt.to_pandas()
+                # Use the max ingested_at timestamp + 1 second to ensure all rows are included
+                max_timestamp = data_df['ingested_at'].max()
+                event_timestamp = max_timestamp + pd.Timedelta(seconds=1)
+            
+            # Create entity DataFrame with the same timestamp for all rows
+            # Feast will do point-in-time join: ingested_at <= event_timestamp
+            entity_df = pd.DataFrame({
+                "sample_index": sample_indices,
+                "event_timestamp": [event_timestamp] * len(sample_indices)
+            })
+            
+            # Build feature names list
+            n_features = feature_store_spec.get_n_features()
+            feature_names = [f"feature_{i}" for i in range(n_features)]
             
             # Retrieve features from feature store
             logger.info("Retrieving features from feature store")
             X, y = feast_manager.get_training_data(
-                sample_indices=feature_store_spec.sample_indices,
-                timestamp=feature_store_spec.timestamp
+                entity_df=entity_df,
+                feature_names=feature_names,
+                target_name="target",
+                feature_view_name=feature_store_spec.feature_view_name,
+                full_feature_names=feature_store_spec.use_full_feature_names
             )
             logger.info(f"Retrieved features from feature store: X shape {X.shape}, y shape {y.shape}")
         except Exception as e:
@@ -199,7 +277,7 @@ def run_ml_workflow(
     # Store feature store info in results
     if feast_manager:
         results['feature_store_enabled'] = True
-        results['feature_store_repo'] = feast_manager.repo_path
+        results['feature_store_repo'] = str(feast_manager.repo_path)
     
     # Optional parameter tuning (replaces pipeline with best estimator)
     if tuning_spec is not None and tuning_spec.enabled:

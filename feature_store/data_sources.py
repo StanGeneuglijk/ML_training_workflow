@@ -1,67 +1,80 @@
 """
-Data sources module
+Data sources module.
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Optional, Union
 
 from feast import FileSource
-from feast.data_format import ParquetFormat
+from feast.data_format import ParquetFormat, DeltaFormat, FileFormat
 
 import utils
-
 
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
 
-def get_data_path(dataset_name: str = "classification_data") -> str:
-    """
-    Get filesystem path to Parquet data for Feast.
-    
-    Args:
-        dataset_name: Name of the dataset
-        
-    Returns:
-        Absolute path to Parquet file
-    """
-    current_dir = Path(__file__).resolve().parent
-    project_root = current_dir.parent
-    # Parquet file exported from SQLite database
-    parquet_path = project_root / "data" / f"{dataset_name}.parquet"
-    
-    return str(parquet_path)
-
-
-def create_classification_data_source(
-    dataset_name: str = "classification_data",
-    timestamp_field: str = "ingested_at"
+def create_file_source(
+    path: Union[str, Path],
+    timestamp_field: str,
+    source_name: Optional[str] = None,
+    description: Optional[str] = None,
+    file_format: Optional[FileFormat] = None,
+    created_timestamp_column: Optional[str] = None,
 ) -> FileSource:
     """
-    Create Feast data source pointing to Parquet file.
+    Create a generic Feast FileSource from any file path.
     
-    Reads Parquet file exported from SQLite database.
+    *FileSource defines how to retrieve data from a file-based data source.
     
     Args:
-        dataset_name: Name of dataset
-        timestamp_field: Timestamp column for point-in-time correctness
+        path: Path to data file or directory 
+        timestamp_field: Column name for point-in-time lookups
+        source_name: Name for the Feast source 
+        description: Description of the source 
+        file_format: File format 
+        created_timestamp_column: Column for creation timestamp 
         
     Returns:
-        Feast FileSource configured for Parquet file
+        Feast FileSource configured for the specified path
         
-    Example:
-        >>> source = create_classification_data_source("classification_data")
-        >>> print(source.path)
+    Examples:
+        >>> # Local parquet file
+        >>> source = create_file_source(
+        ...     path="/data/features.parquet",
+        ...     timestamp_field="event_time"
+        ... )
     """
-    data_path = get_data_path(dataset_name)
+    path_str = str(path)
+    
+    if source_name is None:
+        path_obj = Path(path_str)
+        source_name = f"{path_obj.stem}_source"
+    
+    if description is None:
+        description = f"File source from {path_str}"
+    
+    if file_format is None:
+        file_format = ParquetFormat()
     
     source = FileSource(
-        name=f"{dataset_name}_source",
-        path=data_path,
+        name=source_name,
+        path=path_str,
         timestamp_field=timestamp_field,
-        file_format=ParquetFormat(),
-        description=f"Parquet source for {dataset_name}"
+        file_format=file_format,
+        description=description,
+        **({"created_timestamp_column": created_timestamp_column} if created_timestamp_column else {})
     )
     
-    logger.info("Created data source for Parquet file: %s", data_path)
+    logger.info(
+        "Created file source '%s' (format=%s, path=%s)",
+        source_name, type(file_format).__name__, path_str
+    )
     return source
+
+
+__all__ = [
+    "create_file_source",
+]

@@ -1,255 +1,347 @@
 """
-Feast manager module
+Feast manager module.
 """
+
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
-from feast import FeatureStore
+from feast import FeatureStore, FeatureView
 
-from feature_store.feature_definitions import create_classification_features
 import utils
 
 
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent #CAUTIONS: this might change due architecture change!
+
+REGISTRY_PATH = Path(__file__).resolve().parent.parent / "data" / "registry.db" #CAUTIONS: this might change due architecture change!
 
 class FeastManager:
     """
-    Manager for Feast feature store operations.
-    
-    Handles initialization and feature retrieval from Delta Lake.
+    Generic manager for feature store operations.
     """
     
     def __init__(
         self,
         repo_path: str = "feature_repo",
-        n_features: int = 20
+        project_name: str = "ml_workflow",
     ):
         """
         Initialize Feast manager.
         
         Args:
             repo_path: Path to Feast repository directory
-            n_features: Number of features in dataset (default: 20)
+            project_name: Name of the Feast project (default: "ml_workflow")
         """
         self.repo_path = self._get_absolute_path(repo_path)
-        self.n_features = n_features
-        self.store: FeatureStore | None = None
-        self.initialized = False
+        self.project_name = project_name
+
+        self.store: FeatureStore | None = None     
+        self.initialized = False 
+        self.feature_views: dict[str, FeatureView] = {}
+        self._last_provider: Optional[str] = None 
+
+        self._last_offline_store_type: Optional[str] = None
         
-        logger.info("FeastManager created: repo_path=%s, n_features=%s", self.repo_path, n_features)
+        logger.info("FeastManager created: repo_path=%s, project_name=%s", str(self.repo_path), project_name)
     
-    def _get_absolute_path(self, path: str) -> str:
+    def _get_absolute_path(
+        self, 
+        path: str
+    ) -> Path:
         """Convert relative path to absolute based on project root."""
-        if os.path.isabs(path):
-            return path
-        
-        current_dir = Path(__file__).resolve().parent
-        project_root = current_dir.parent
-        return str(project_root / path)
+        input_path = Path(path)
+        if input_path.is_absolute():
+            absolute_path = input_path
+        else:
+            absolute_path = PROJECT_ROOT / path
+
+        return absolute_path
     
-    def initialize(self, force_recreate: bool = False) -> FeatureStore:
+    def initialize(
+        self,
+        project_name: Optional[str] = None,
+        provider: str = "local",
+        offline_store_type: str = "file",
+    ) -> FeatureStore:
         """
-        Initialize Feast feature store.
-        
-        Creates repository, configuration, and registers feature views.
-        
+        Initialize feature store.
+                
         Args:
-            force_recreate: If True, delete existing repo and recreate
+            project_name: Name of the project 
+            provider: Provider type
+            offline_store_type: Type of offline store
             
         Returns:
             Initialized FeatureStore instance
             
-        Raises:
-            ValueError: If initialization fails
         """
-        if self.initialized and self.store is not None and not force_recreate:
+        if self.initialized and self.store is not None:
             logger.info("Feature store already initialized")
             return self.store
         
-        if force_recreate and os.path.exists(self.repo_path):
-            logger.info("Removing existing feature repo: %s", self.repo_path)
-            shutil.rmtree(self.repo_path)
-        
-        os.makedirs(self.repo_path, exist_ok=True)
-        
-        self._create_feature_store_yaml()
-        
-        logger.info("Initializing Feast feature store at: %s", self.repo_path)
-        self.store = FeatureStore(repo_path=self.repo_path)
-        
-        self._apply_feature_definitions()
-        
+        self.repo_path.mkdir(parents=True, exist_ok=True)
+
+        self._create_feature_store_yaml(
+            project_name=project_name,
+            provider=provider,
+            offline_store_type=offline_store_type,
+        )
+        logger.info("Initializing feature store at: %s", self.repo_path)
+
+        self.store = FeatureStore(repo_path=str(self.repo_path)) 
         self.initialized = True
+        self._last_provider = provider
+
+        self._last_offline_store_type = offline_store_type
+
         logger.info("Feature store initialized successfully")
+
         return self.store
     
-    def _create_feature_store_yaml(self) -> None:
-        """Create feature_store.yaml configuration file."""
-        registry_path = os.path.join(self.repo_path, "data", "registry.db")
-        os.makedirs(os.path.dirname(registry_path), exist_ok=True)
+    def _create_feature_store_yaml(
+        self,
+        project_name: Optional[str] = None,
+        provider: str = "local",
+        offline_store_type: str = "file",
+    ) -> None:
+        """
+        Create feature_store.yaml configuration file.
         
-        yaml_content = f"""project: ml_workflow
-registry: {registry_path}
-provider: local
-offline_store:
-    type: file
-entity_key_serialization_version: 2
-"""
-        
-        yaml_path = os.path.join(self.repo_path, "feature_store.yaml")
-        with open(yaml_path, "w") as f:
-            f.write(yaml_content)
+        Args:
+            project_name: Name of the project 
+            provider:  Provider type 
+            offline_store_type: Type of offline store 
+        """
+        project = project_name or self.project_name
+
+        registry_path = REGISTRY_PATH
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+                
+        yaml_path = self.repo_path / "feature_store.yaml"
+        yaml_content = f"""
+            project: {project}
+            registry: {str(registry_path)}
+            provider: {provider}
+            offline_store:
+                type: {offline_store_type}
+            entity_key_serialization_version: 2
+                """
+        yaml_path.write_text(yaml_content)
         
         logger.info("Created configuration: %s", yaml_path)
     
-    def _apply_feature_definitions(self) -> None:
-        """Register feature views with Feast."""
-        if self.store is None:
-            raise ValueError("Feature store must be initialized first")
-        
-        logger.info("Registering feature views...")
-        
-        feature_view = create_classification_features(n_features=self.n_features)
-        self.store.apply([feature_view])
-        
-        logger.info("Feature view registered: classification_features")
-    
-    def get_training_data(
+    def register_feature_view(
         self,
-        sample_indices: list[int] | None = None,
-        timestamp = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        feature_view: Union[FeatureView, list[FeatureView]],
+    ) -> None:
         """
-        Get training data as numpy arrays.
-        
-        Retrieves features from Feast offline store (Delta Lake).
+        Register feature views.
         
         Args:
-            sample_indices: List of sample indices to retrieve
-                          If None, retrieves all available samples
-            timestamp: Timestamp for point-in-time retrieval
-                      If None, uses current time (ignored for offline store)
-            
-        Returns:
-            Tuple of (X, y) as numpy arrays where:
-            - X: Feature matrix
-            - y: Target vector
-            
-        Raises:
-            ValueError: If feature store not initialized
-            
-        Example:
-            >>> manager = FeastManager(n_features=20)
-            >>> manager.initialize()
-            >>> X, y = manager.get_training_data(sample_indices=[0, 1, 2])
-            >>> print(X.shape)  # (3, 20)
+            feature_view: FeatureView or list of FeatureViews to register
         """
         if self.store is None:
             raise ValueError("Feature store must be initialized first")
         
-        if sample_indices is None:
-            sample_indices = self._get_all_sample_indices()
+        if isinstance(feature_view, FeatureView):
+            feature_views = [feature_view]
+        else:
+            feature_views = feature_view
         
-        # Use provided timestamp or current time
-        event_timestamp = timestamp if timestamp is not None else pd.Timestamp.now()
+        self.store.apply(feature_views)
         
-        entity_df = pd.DataFrame({
-            "sample_index": sample_indices,
-            "event_timestamp": [event_timestamp] * len(sample_indices)
-        })
+        for fv in feature_views:
+            self.feature_views[fv.name] = fv
         
-        features = [
-            f"classification_features:feature_{i}" 
-            for i in range(self.n_features)
-        ]
-        features.append("classification_features:target")
+        logger.info("Registered %d feature views", len(feature_views))
+    
+    def get_features(
+        self,
+        entity_df: pd.DataFrame,
+        features: list[str],
+        feature_view_name: Optional[str] = None,
+        full_feature_names: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Get features from feature store.
         
-        logger.info("Retrieving %s features for %s samples", len(features), len(sample_indices))
+        Args:
+            entity_df: DataFrame with entity keys 
+            features: List of feature names (e.g., ["feature_0", "feature_1"]
+            feature_view_name: Feature view name to prefix features
+            full_feature_names: If True, use full feature names 
+            
+        Returns:
+            DataFrame with features joined to entities
+            
+        """
+        if self.store is None:
+            raise ValueError("Feature store must be initialized first")
+        
+        if feature_view_name and not full_feature_names:
+            features = [f"{feature_view_name}:{feat}" for feat in features]
+        
+        logger.info("Retrieving %s features for %s entities", len(features), len(entity_df))
+    
         
         features_df = self.store.get_historical_features(
             entity_df=entity_df,
             features=features,
-            full_feature_names=False
+            full_feature_names=full_feature_names,
         ).to_df()
         
-        feature_cols = [f"feature_{i}" for i in range(self.n_features)]
-        X = features_df[feature_cols].values
-        y = features_df["target"].values
+        logger.info("Retrieved features: shape %s", features_df.shape)
+
+        return features_df
+    
+    def get_training_data(
+        self,
+        entity_df: pd.DataFrame,
+        feature_names: list[str],
+        target_name: str,
+        feature_view_name: Optional[str] = None,
+        full_feature_names: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get training data.
+        
+        Args:
+            entity_df: DataFrame with entity keys 
+            feature_names: List of feature column names to retrieve
+            target_name: Name of target column
+            feature_view_name: Feature view name to prefix features
+            full_feature_names: If True, use full feature names 
+            
+        Returns:
+            Tuple of (X, y) as numpy arrays
+        """
+        all_features = feature_names + [target_name]
+
+        features_df = self.get_features(
+            entity_df=entity_df,
+            features=all_features,
+            feature_view_name=feature_view_name,
+            full_feature_names=full_feature_names,
+        )
+        X = features_df[feature_names].values
+        y = features_df[target_name].values
         
         logger.info("Retrieved training data: X shape %s, y shape %s", X.shape, y.shape)
+
         return X, y
     
-    def _get_all_sample_indices(self) -> list[int]:
-        """Get all available sample indices from SQLite database."""
-        import sqlite3
-        from data import get_database_path
+
+    def get_entity_values(
+        self,
+        entity_column: str,
+        dataset_name: Optional[str] = None,
+        data_path: Optional[Union[str, Path]] = None,
+    ) -> list:
+        """
+        Get all unique entity values from a table.
         
-        db_path = get_database_path()
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        Args:
+            entity_column: Name of the entity column
+            dataset_name: Dataset name 
+            data_path: Optional path to Delta Lake table 
+            
+        Returns:
+            List of unique entity values
+            
+        Raises:
+            ValueError: If neither dataset_name nor data_path is provided
+            FileNotFoundError: If Delta Lake table doesn't exist
+        """
+        from data.delta_lake import get_delta_path
+        from deltalake import DeltaTable
         
-        # Get dataset_id for classification_data
-        cursor.execute("SELECT id FROM datasets WHERE name = ?", ("classification_data",))
-        result = cursor.fetchone()
-        if not result:
-            conn.close()
-            raise ValueError("Dataset 'classification_data' not found")
-        dataset_id = result[0]
+        if dataset_name:
+            delta_path = get_delta_path(dataset_name)
+        elif data_path is not None:
+            delta_path = Path(data_path)
+        else:
+            raise ValueError("Must provide either dataset_name or data_path")
         
-        # Get all sample indices
-        cursor.execute(
-            "SELECT DISTINCT sample_index FROM features WHERE dataset_id = ? ORDER BY sample_index",
-            (dataset_id,)
-        )
-        sample_indices = [row[0] for row in cursor.fetchall()]
-        conn.close()
+        if not delta_path.exists():
+            raise FileNotFoundError(
+                f"Delta Lake table not found at {delta_path}. "
+            )
+        dt = DeltaTable(str(delta_path))
+        df = dt.to_pandas()
         
-        logger.info("Found %s samples in database", len(sample_indices))
-        return sample_indices
+        if entity_column not in df.columns:
+            raise ValueError(f"Entity column '{entity_column}' not found in table")
+        
+        entity_values = sorted(df[entity_column].unique().tolist())
+        
+        logger.info("Found %s unique entity values in Delta Lake table", len(entity_values))
+
+        return entity_values
     
-    def cleanup(self) -> None:
+    def cleanup(
+        self
+    ) -> None:
         """Remove feature store repository and reset state."""
-        if os.path.exists(self.repo_path):
+        if self.repo_path.exists():
             logger.info("Cleaning up feature store: %s", self.repo_path)
             shutil.rmtree(self.repo_path)
             self.initialized = False
             self.store = None
             logger.info("Feature store cleaned up")
 
-
 def create_feast_manager(
     repo_path: str = "feature_repo",
-    n_features: int = 20,
+    project_name: str = "ml_workflow",
     initialize: bool = True,
-    force_recreate: bool = False
+    provider: str = "local",
+    offline_store_type: str = "file",
 ) -> FeastManager:
     """
-    Create and optionally initialize a FeastManager.
+    Create a FeastManager.
     
     Args:
-        repo_path: Path to Feast repository (default: "feature_repo")
-        n_features: Number of features (default: 20)
-        initialize: Auto-initialize feature store (default: True)
-        force_recreate: Recreate from scratch (default: False)
+        repo_path: Path to repository 
+        project_name: Name of the project 
+        initialize: Auto-initialize feature store 
+        provider: Provider type
+        offline_store_type: Type of offline store 
         
     Returns:
         FeastManager instance
         
     Example:
-        >>> manager = create_feast_manager(n_features=20, initialize=True)
-        >>> X, y = manager.get_training_data(sample_indices=[0, 1, 2])
+        >>> manager = create_feast_manager(initialize=True)
+        >>> feature_view = create_feature_view(...)
+        >>> manager.register_feature_view(feature_view)
+        >>> entity_df = pd.DataFrame({
+        ...     "sample_index": [0, 1, 2],
+        ...     "event_timestamp": [pd.Timestamp.now()] * 3
+        ... })
+        >>> X, y = manager.get_training_data(
+        ...     entity_df=entity_df,
+        ...     feature_names=["feature_0", "feature_1"],
+        ...     target_name="target"
+        ... )
     """
-    manager = FeastManager(repo_path=repo_path, n_features=n_features)
+    manager = FeastManager(repo_path=repo_path, project_name=project_name)
     
     if initialize:
-        manager.initialize(force_recreate=force_recreate)
+        manager.initialize(
+            provider=provider,
+            offline_store_type=offline_store_type,
+        )
     
     return manager
+
+
+__all__ = [
+    "FeastManager",
+    "create_feast_manager",
+]
