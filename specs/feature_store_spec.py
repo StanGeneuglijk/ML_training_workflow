@@ -183,7 +183,7 @@ class FeatureStoreSpec(BaseModel):
         self
     ) -> int:
         """
-        Detect number of features from  table.
+        Detect number of features from Delta Lake table.
         """
         try:
             delta_path = get_delta_path(self.dataset_name)
@@ -234,10 +234,10 @@ class FeatureStoreSpec(BaseModel):
         Get number of features, auto-detecting if not set.
         
         Args:
-            None 
+            None
             
         Returns:
-            Number of features 
+            Number of features
         """
         if self.n_features is not None:
             num_features = self.n_features
@@ -366,7 +366,7 @@ class FeatureStoreSpecBuilder:
         Set online store type.
         
         Args:
-            store_type: Type of online store ("sqlite", "redis", or None)
+            store_type: Type of online store
             
         Returns:
             Builder instance for method chaining
