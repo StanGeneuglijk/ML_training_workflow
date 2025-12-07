@@ -1,45 +1,43 @@
 """
-Preprocessing module for ML workflow version 1.
-
-Core preprocessing pipeline for feature transformation.
+Preprocessing module./yes!
 """
-from __future__ import annotations
 
+from __future__ import annotations
+ 
 import logging
+from typing import Any
 import numpy as np
-import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+from sklearn.preprocessing import FunctionTransformer, StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, LabelEncoder
 
 from specs.feature_spec import FeatureSpec, NumericFeatureSpec, CategoricalFeatureSpec
+
 import utils
-
-
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
 
 class FeatureSpecTransformerFactory:
-    """Factory for creating sklearn transformers from feature specifications."""
+    """Factory for creating sklearn transformers."""
     
     @staticmethod
-    def create_transformer(spec: FeatureSpec) -> Pipeline:
+    def create_transformer(
+        spec: FeatureSpec
+    ) -> Pipeline:
         """
-        Create sklearn transformer pipeline from feature specification.
+        Create sklearn transformer pipeline.
         
         Args:
             spec: Feature specification
             
         Returns:
-            Sklearn Pipeline with imputation and scaling/encoding
+            Sklearn Pipeline with imputation and scaling
         """
         steps = []
-        
+
         if isinstance(spec, NumericFeatureSpec):
-            # Imputation
             if spec.imputer_enabled:
                 steps.append((
                     'imputer',
@@ -49,21 +47,14 @@ class FeatureSpecTransformerFactory:
                     )
                 ))
             
-            # Scaling
             if spec.scaler_enabled and spec.scaler_type != 'none':
                 if spec.scaler_type == 'standard':
                     scaler = StandardScaler()
-                elif spec.scaler_type == 'minmax':
-                    scaler = MinMaxScaler()
-                elif spec.scaler_type == 'robust':
-                    scaler = RobustScaler()
+                    steps.append(('scaler', scaler))
                 else:
                     raise ValueError(f"Unknown scaler type: {spec.scaler_type}")
-                
-                steps.append(('scaler', scaler))
         
         elif isinstance(spec, CategoricalFeatureSpec):
-            # Imputation
             if spec.imputer_enabled:
                 steps.append((
                     'imputer',
@@ -73,47 +64,43 @@ class FeatureSpecTransformerFactory:
                     )
                 ))
             
-            # Encoding
             if spec.encoder_enabled and spec.encoder_type != 'none':
                 if spec.encoder_type == 'onehot':
                     encoder = OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore')
-                elif spec.encoder_type == 'ordinal':
-                    encoder = OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1)
+                    steps.append(('encoder', encoder))
                 else:
                     raise ValueError(f"Unknown encoder type: {spec.encoder_type}")
                 
-                steps.append(('encoder', encoder))
-        
         if not steps:
-            # Return identity transformer if no steps
-            from sklearn.preprocessing import FunctionTransformer
-            return Pipeline([('identity', FunctionTransformer())])
+            return Pipeline(
+                [('identity', FunctionTransformer())]
+                )
         
         return Pipeline(steps)
 
 
 class FeatureSpecPipeline(BaseEstimator, TransformerMixin):
     """
-    Preprocessing pipeline built from feature specifications.
-    
-    Creates sklearn ColumnTransformer from list of feature specifications.
-    Inherits from BaseEstimator and TransformerMixin for sklearn compatibility.
+    Preprocessing pipeline.
     """
-    
-    # Explicitly set as transformer (not classifier/regressor)
+ 
     _estimator_type = "transformer"
     
-    def __sklearn_tags__(self):
+    def __sklearn_tags__(
+        self
+    ) -> Any: 
         """
-        Return sklearn tags for modern sklearn versions (1.6+).
-        
-        This explicitly marks the estimator as a transformer.
+        Return sklearn tags.
         """
         tags = super().__sklearn_tags__()
         tags.estimator_type = "transformer"
+
         return tags
     
-    def __init__(self, feature_specs: list[FeatureSpec]):
+    def __init__(
+        self, 
+        feature_specs: list[FeatureSpec]
+    ) -> None:
         """
         Initialize preprocessing pipeline.
         
@@ -122,106 +109,143 @@ class FeatureSpecPipeline(BaseEstimator, TransformerMixin):
         """
         if not feature_specs:
             raise ValueError("At least one feature specification is required")
-        
         self.feature_specs = feature_specs
+
+        self.feature_name_to_index = {}
+        for idx, spec in enumerate(feature_specs):
+            if 'column_index' in spec.metadata:
+                col_idx = spec.metadata['column_index']
+                if not isinstance(col_idx, int):
+                    raise ValueError(
+                        f"Feature '{spec.feature_name}': metadata['column_index'] must be an integer, "
+                        f"got {type(col_idx).__name__}"
+                    )
+            else:
+                col_idx = idx
+                logger.info(
+                    f"Feature '{spec.feature_name}' using position {idx} as column index. "
+                )
+
+            self.feature_name_to_index[spec.feature_name] = col_idx
+
         self.transformer_ = None
-        self.feature_names_ = None
-        
-        logger.info(f"Creating preprocessing pipeline for {len(feature_specs)} features")
     
-    def fit(self, X, y=None):
+    
+    def fit(
+        self, 
+        X: np.ndarray,
+        y: np.ndarray | None = None,
+    ) -> self:
         """
         Fit the preprocessing pipeline.
         
         Args:
-            X: Training features (DataFrame or array)
-            y: Ignored (for sklearn compatibility)
+            X: Training features 
+            y: Target 
             
         Returns:
             self
         """
-        if isinstance(X, pd.DataFrame):
-            self.feature_names_ = X.columns.tolist()
-            X_df = X
-        else:
-            # Convert to DataFrame for processing
-            X_df = pd.DataFrame(X, columns=[f"feature_{i}" for i in range(X.shape[1])])
-            self.feature_names_ = X_df.columns.tolist()
+        if not isinstance(X, np.ndarray):
+            raise TypeError(f"Expected numpy array, got {type(X).__name__}")
         
-        # Create transformers
         transformers = []
         
         for spec in self.feature_specs:
-            if spec.feature_name not in X_df.columns:
-                logger.warning(f"Feature '{spec.feature_name}' not found in data, skipping")
+            col_idx = self.feature_name_to_index.get(spec.feature_name)
+            if col_idx is None or col_idx >= X.shape[1]:
+                logger.warning(
+                    f"Feature '{spec.feature_name}' mapped to invalid index {col_idx}, skipping"
+                )
                 continue
             
             transformer = FeatureSpecTransformerFactory.create_transformer(spec)
-            transformers.append((spec.feature_name, transformer, [spec.feature_name]))
+            transformers.append(
+                (spec.feature_name, transformer, [col_idx])
+            )
         
         if not transformers:
             raise ValueError("No valid feature specifications found in data")
         
-        # Create column transformer
         self.transformer_ = ColumnTransformer(
             transformers=transformers,
             remainder='passthrough',
             verbose_feature_names_out=False
         )
-        
-        logger.info(f"Fitting preprocessing pipeline on {X_df.shape[0]} samples")
-        self.transformer_.fit(X_df)
+
+        self.transformer_.fit(X)
         logger.info("Preprocessing pipeline fitted successfully")
         
         return self
     
-    def transform(self, X):
+
+    def transform(
+        self, X: np.ndarray
+    ) -> np.ndarray:
         """
         Transform features using fitted pipeline.
         
         Args:
-            X: Features to transform
+            X: Features to transform 
             
         Returns:
-            Transformed features as numpy array
+            Transformed features
         """
         if self.transformer_ is None:
             raise ValueError("Pipeline must be fitted before transform")
         
-        if isinstance(X, pd.DataFrame):
-            X_df = X
-        else:
-            X_df = pd.DataFrame(X, columns=self.feature_names_)
+        if not isinstance(X, np.ndarray):
+            raise TypeError(f"Expected numpy array, got {type(X).__name__}")
         
-        transformed = self.transformer_.transform(X_df)
-        logger.debug(f"Transformed {X_df.shape[0]} samples to {transformed.shape}")
+        transformed = self.transformer_.transform(X)
+
+        logger.info(f"Transformed features: {transformed.shape}")
         
         return transformed
     
-    def fit_transform(self, X, y=None):
-        """Fit and transform features."""
-        return self.fit(X, y).transform(X)
+
+    def fit_transform(
+        self, 
+        X: np.ndarray, 
+        y: np.ndarray | None = None
+    ) -> np.ndarray:
+        """
+        Fit and transform features.
+        
+        Args:
+            X: Training features 
+            y: Target 
+            
+        Returns:
+            Transformed features
+        """
+        transformed = self.fit(X, y).transform(X)
+        return transformed
     
-    def get_params(self, deep=True):
+    def get_params(
+        self, 
+        deep: bool = True
+    ) -> dict[str, Any]:
         """
         Get parameters for this estimator.
-        
-        Required for sklearn compatibility and GridSearchCV.
-        
+                
         Args:
             deep: If True, return parameters for nested objects
             
         Returns:
             Dictionary of parameter names mapped to their values
         """
-        return {"feature_specs": self.feature_specs}
-    
-    def set_params(self, **params):
+        params = {"feature_specs": self.feature_specs}
+        return params
+
+
+    def set_params(
+        self, 
+        **params: Any
+    ) -> self:
         """
         Set parameters for this estimator.
-        
-        Required for sklearn compatibility and GridSearchCV.
-        
+                
         Args:
             **params: Estimator parameters
             
@@ -233,9 +257,11 @@ class FeatureSpecPipeline(BaseEstimator, TransformerMixin):
         return self
 
 
-def create_preprocessing_pipeline(feature_specs: list[FeatureSpec]) -> FeatureSpecPipeline:
+def create_preprocessing_pipeline(
+    feature_specs: list[FeatureSpec]
+) -> FeatureSpecPipeline:
     """
-    Create preprocessing pipeline from feature specifications.
+    Create preprocessing pipeline.
     
     Args:
         feature_specs: List of feature specifications

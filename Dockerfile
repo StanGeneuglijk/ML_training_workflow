@@ -35,8 +35,8 @@ COPY . .
 # Create directories
 RUN mkdir -p /app/data/database /app/mlruns /app/logs
 
-# Expose ports
-EXPOSE 5000 8000
+# Expose port
+EXPOSE 5000
 
 # Default command (MLflow UI)
 CMD ["mlflow", "ui", "--host", "0.0.0.0", "--port", "5000"]

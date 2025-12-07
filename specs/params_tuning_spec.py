@@ -1,7 +1,5 @@
 """
-Core parameter tuning specifications for ML workflow v1.
-
-Provides minimal yet robust specs to drive grid and random search.
+Parameter tuning specifications
 """
 from __future__ import annotations
 
@@ -10,35 +8,82 @@ import logging
 from typing import Optional, Literal, Dict, Any, List, Union
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
-logger = logging.getLogger(__name__)
+
+import utils
+logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
 
 class ParamTuningSpec(BaseModel, abc.ABC):
-    """Abstract base class for parameter tuning specifications with Pydantic validation."""
+    """
+    Abstract base class for parameter tuning specifications with Pydantic validation.
+    """
+    model_config = ConfigDict(
+        extra='forbid', 
+        validate_assignment=True
+    )
     
-    model_config = ConfigDict(extra='forbid', validate_assignment=True)
-    
-    tuning_name: str = Field(..., min_length=1, description="Name of the tuning specification")
-    enabled: bool = Field(default=True, description="Whether tuning is enabled")
-    random_state: Optional[int] = Field(default=None, description="Random state for reproducibility")
-    description: Optional[str] = Field(default=None, description="Description of the tuning")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    tuning_name: str = Field(
+        ..., 
+        min_length=1, 
+        description="Name of the tuning specification"
+    )
+    enabled: bool = Field(
+        default=True, 
+        description="Whether tuning is enabled"
+    )
+    random_state: Optional[int] = Field(
+        default=None, 
+        description="Random state for reproducibility"
+    )
+    description: Optional[str] = Field(
+        default=None, 
+        description="Description of the tuning"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Additional metadata"
+    )
 
     @field_validator('tuning_name')
     @classmethod
-    def validate_name(cls, v: str) -> str:
-        """Validate tuning name is not empty or whitespace."""
+    def validate_name(
+        cls, 
+        v: str
+    ) -> str:
+        """
+        Validate tuning name is not empty or whitespace.
+        
+        Args:
+            v: The value to validate
+        """
         if not v.strip():
             raise ValueError("tuning_name cannot be empty or whitespace")
         return v.strip()
 
     @abc.abstractmethod
-    def get_tuning_type(self) -> str:
-        """Return the tuning type identifier."""
+    def get_tuning_type(
+        self
+    ) -> str:
+        """
+        Return the tuning type identifier.
+        
+        Args:
+            None
+        """
         raise NotImplementedError
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert specification to dictionary."""
+    def to_dict(
+        self
+    ) -> Dict[str, Any]:
+        """
+        Convert specification to dictionary.
+        
+        Args:
+            None
+
+        Returns:
+            Dictionary representation of the specification
+        """
         return {
             "tuning_name": self.tuning_name,
             "tuning_type": self.get_tuning_type(),
@@ -50,8 +95,9 @@ class ParamTuningSpec(BaseModel, abc.ABC):
 
 
 class GridSearchSpec(ParamTuningSpec):
-    """Grid search parameter tuning specification with Pydantic validation."""
-    
+    """
+    Grid search parameter tuning specification with Pydantic validation.
+    """
     param_grid: Dict[str, List[Any]] = Field(
         default_factory=dict,
         description="Grid of parameters to search over"
@@ -87,14 +133,25 @@ class GridSearchSpec(ParamTuningSpec):
         description="Verbosity level"
     )
 
-    def get_tuning_type(self) -> str:
-        """Return 'grid_search' as the tuning type."""
+    def get_tuning_type(
+        self
+    ) -> str:
+        """
+        Return 'grid_search' as the tuning type.
+        
+        Args:
+            None
+
+        Returns:
+            Returns the tuning type
+        """
         return "grid_search"
 
 
 class RandomSearchSpec(ParamTuningSpec):
-    """Random search parameter tuning specification with Pydantic validation."""
-    
+    """
+    Random search parameter tuning specification with Pydantic validation.
+    """
     param_distributions: Dict[str, List[Any]] = Field(
         default_factory=dict,
         description="Distributions of parameters to sample from"
@@ -135,16 +192,36 @@ class RandomSearchSpec(ParamTuningSpec):
         description="Verbosity level"
     )
 
-    def get_tuning_type(self) -> str:
-        """Return 'random_search' as the tuning type."""
+    def get_tuning_type(
+        self
+    ) -> str:
+        """
+        Return 'random_search' as the tuning type.
+        
+        Args:
+            None
+            
+        Returns:
+            Returns the random search type
+        """
         return "random_search"
 
 
 class ParamTuningSpecBuilder:
     """Builder for creating parameter tuning specifications."""
     
-    def __init__(self) -> None:
-        """Initialize builder."""
+    def __init__(
+        self
+    ) -> None:
+        """
+        Initialize builder.
+        
+        Args:
+            None
+        
+        Returns:
+            None
+        """
         self._specs: List[ParamTuningSpec] = []
 
     def add_grid_search(
@@ -234,6 +311,9 @@ class ParamTuningSpecBuilder:
         """
         Build and return list of tuning specifications.
         
+        Args:
+            None
+
         Returns:
             List of tuning specs
         """

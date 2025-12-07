@@ -18,8 +18,6 @@ from .params_tuning import (
     GridSearch,
     RandomSearch,
     create_tuning,
-    run_grid_search,
-    run_random_search,
 )
 from .calibration import (
     ClassifierCalibration,
@@ -36,8 +34,6 @@ __all__ = [
     "GridSearch",
     "RandomSearch",
     "create_tuning",
-    "run_grid_search",
-    "run_random_search",
     "ClassifierCalibration",
     "create_calibration",
 ]

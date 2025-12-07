@@ -1,14 +1,5 @@
 """
-Common utilities for ML workflow.
-
-This module provides shared utilities used across multiple modules to reduce
-code duplication and ensure consistency.
-
-Functions:
-    validate_array_input: Validate and convert input to numpy array
-    setup_logging: Configure logging for the application
-    ensure_directory: Ensure a directory exists
-    convert_to_numpy: Convert various input types to numpy arrays
+Utils
 """
 
 from __future__ import annotations
@@ -30,76 +21,37 @@ def validate_array_input(
     Validate and convert input to numpy array.
     
     Args:
-        data: Input data to validate (can be numpy array, pandas DataFrame/Series, list)
-        name: Name of the variable for error messages
-        min_dim: Minimum number of dimensions required
+        data: Input data to validate 
+        name: Name of the variable for debugging
+        min_dim: Minimum number of dimensions
         check_finite: Whether to check for finite values
         
     Returns:
         Validated numpy array
-        
-    Raises:
-        ValueError: If data is None, empty, or invalid
-        TypeError: If data cannot be converted to array
     """
     if data is None:
         raise ValueError(f"{name} cannot be None")
     
-    # Convert to numpy array
     if isinstance(data, np.ndarray):
         array = data
     elif isinstance(data, (pd.DataFrame, pd.Series)):
         array = data.values
-    elif isinstance(data, (list, tuple)):
-        array = np.asarray(data)
     else:
         try:
             array = np.asarray(data)
         except Exception as e:
             raise TypeError(f"{name} must be convertible to numpy array: {e}") from e
     
-    # Check dimensions
     if array.ndim < min_dim:
         raise ValueError(
             f"{name} must have at least {min_dim} dimension(s), got {array.ndim}"
         )
     
-    # Check finite values if required
     if check_finite:
         if not np.all(np.isfinite(array)):
             raise ValueError(f"{name} contains non-finite values (NaN or Inf)")
     
     return array
-
-
-def convert_to_numpy(
-    data: Union[np.ndarray, pd.DataFrame, pd.Series, list, tuple],
-    name: str = "data"
-) -> np.ndarray:
-    """
-    Convert various input types to numpy array.
-    
-    Args:
-        data: Input data to convert
-        name: Name of the variable for error messages
-        
-    Returns:
-        Numpy array
-        
-    Raises:
-        TypeError: If conversion fails
-    """
-    if isinstance(data, np.ndarray):
-        return data
-    elif isinstance(data, (pd.DataFrame, pd.Series)):
-        return data.values
-    elif isinstance(data, (list, tuple)):
-        return np.asarray(data)
-    else:
-        try:
-            return np.asarray(data)
-        except Exception as e:
-            raise TypeError(f"Cannot convert {name} to numpy array: {e}") from e
 
 
 def validate_training_data(
@@ -115,14 +67,10 @@ def validate_training_data(
         
     Returns:
         Tuple of validated (X, y) arrays
-        
-    Raises:
-        ValueError: If data is invalid
     """
-    X_array = convert_to_numpy(X, "X")
-    y_array = convert_to_numpy(y, "y")
-    
-    # Check shapes
+    X_array = validate_array_input(X, "X")
+    y_array = validate_array_input(y, "y")
+
     if X_array.ndim != 2:
         raise ValueError(f"X must be 2D array, got {X_array.ndim}D")
     
@@ -154,11 +102,8 @@ def validate_prediction_data(
         
     Returns:
         Validated feature array
-        
-    Raises:
-        ValueError: If data is invalid
     """
-    X_array = convert_to_numpy(X, "X")
+    X_array = validate_array_input(X, "X")
     
     if X_array.ndim != 2:
         raise ValueError(f"X must be 2D array, got {X_array.ndim}D")
@@ -185,7 +130,7 @@ def setup_logging(
     Configure logging for the application.
     
     Args:
-        level: Logging level (default: logging.INFO)
+        level: Logging level 
         log_file: Optional path to log file
         logger_name: Name for the logger
         
@@ -194,7 +139,7 @@ def setup_logging(
     """
     logger = logging.getLogger(logger_name)
     
-    if logger.handlers:  # Already configured
+    if logger.handlers:  
         return logger
     
     formatter = logging.Formatter(
@@ -223,9 +168,6 @@ def ensure_directory(directory_path: str) -> None:
     
     Args:
         directory_path: Path to the directory
-        
-    Raises:
-        OSError: If directory cannot be created
     """
     if directory_path and not os.path.exists(directory_path):
         os.makedirs(directory_path, exist_ok=True)
@@ -235,7 +177,6 @@ __all__ = [
     "validate_array_input",
     "validate_training_data",
     "validate_prediction_data",
-    "convert_to_numpy",
     "setup_logging",
     "ensure_directory",
 ]

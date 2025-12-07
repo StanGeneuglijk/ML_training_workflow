@@ -1,5 +1,5 @@
 """
-Feature Store specification module.
+Feature Store specification module
 """
 
 from __future__ import annotations
@@ -14,34 +14,20 @@ from deltalake import DeltaTable
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
-logger = logging.getLogger(__name__)
+
+import utils
+logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
 
 class FeatureStoreSpec(BaseModel):
     """
     Configuration specification for feature store integration.
-    
-    Attributes:
-        enabled: Whether to use feature store 
-        repo_path: Path to repository directory
-        project_name: Name of the project
-        dataset_name: Name of the dataset
-        n_features: Optional number of features 
-        offline_store_type: Type of offline store 
-        online_store_type: Type of online store 
-        feature_view_name: Name of the feature view to use
-        use_full_feature_names: Whether to use full feature names 
-        timestamp: Optional timestamp for point-in-time feature retrieval
-        initialize_on_start: Whether to initialize feature store on workflow start
-        materialize_online: Whether to materialize features to online store
     """
-    # Pydantic configuration
     model_config = ConfigDict(
         extra='forbid', 
         validate_assignment=True
     )
     
-    # Required fields
     enabled: bool = Field(
         default=False,
         description="Whether to enable the feature store"
@@ -97,7 +83,6 @@ class FeatureStoreSpec(BaseModel):
         description="Specific sample indices to retrieve"
     )
     
-    # Validators
     @field_validator('repo_path')
     @classmethod
     def validate_repo_path(
@@ -162,12 +147,17 @@ class FeatureStoreSpec(BaseModel):
             raise ValueError("project_name cannot be empty")
         return v.strip()
     
-    # Checks
     def should_initialize(
         self
     ) -> bool:
         """
         Check if feature store should be initialized.
+
+        Args:
+            None
+
+        Returns:
+            True if feature store should be initialized
         """
         return self.enabled and self.initialize_on_start
     
@@ -176,6 +166,12 @@ class FeatureStoreSpec(BaseModel):
     ) -> bool:
         """
         Check if features should be materialized to online store.
+
+        Args:
+            None
+
+        Returns:
+            True if features should be materialized to online store
         """
         return self.enabled and self.materialize_online and self.online_store_type is not None
     
@@ -184,6 +180,12 @@ class FeatureStoreSpec(BaseModel):
     ) -> int:
         """
         Detect number of features from Delta Lake table.
+
+        Args:
+            None
+
+        Returns:
+            Number of features in the dataset
         """
         try:
             delta_path = get_delta_path(self.dataset_name)
@@ -201,7 +203,6 @@ class FeatureStoreSpec(BaseModel):
             logger.warning(f"Failed to detect n_features: {e}")
             raise ValueError(f"Cannot auto-detect n_features, please set it explicitly. Error: {e}")
     
-    # Getters
     def get_feature_references(
         self, 
         n_features: Optional[int] = None
@@ -252,9 +253,29 @@ class FeatureStoreSpecBuilder:
     Builder for creating FeatureStoreSpec instances.
     """
     
-    def __init__(self) -> None:
+    def __init__(
+        self
+    ) -> None:
         """
         Initialize builder with default values.
+
+        Args:
+            enabled: Whether to enable feature store integration
+            repo_path: Path to repository directory
+            project_name: Name of the project
+            dataset_name: Name of the dataset
+            n_features: Number of features in the dataset
+            offline_store_type: Type of offline store
+            online_store_type: Type of online store
+            feature_view_name: Name of the feature view to use
+            use_full_feature_names: Whether to use full feature names
+            timestamp: Timestamp for point-in-time feature retrieval
+            initialize_on_start: Whether to initialize feature store on workflow start
+            materialize_online: Whether to materialize features to online store
+            sample_indices: Specific sample indices to retrieve
+
+        Returns:
+            None
         """
         self._enabled = False
         self._repo_path = "feature_repo"
@@ -270,7 +291,9 @@ class FeatureStoreSpecBuilder:
         self._materialize_online = False
         self._sample_indices = None
     
-    def enable(self) -> 'FeatureStoreSpecBuilder':
+    def enable(
+        self
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Enable feature store integration.
         
@@ -280,7 +303,9 @@ class FeatureStoreSpecBuilder:
         self._enabled = True
         return self
     
-    def disable(self) -> 'FeatureStoreSpecBuilder':
+    def disable(
+        self
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Disable feature store integration.
         
@@ -290,7 +315,10 @@ class FeatureStoreSpecBuilder:
         self._enabled = False
         return self
     
-    def set_repo_path(self, repo_path: str) -> 'FeatureStoreSpecBuilder':
+    def set_repo_path(
+        self, 
+        repo_path: str
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set repository path.
         
@@ -303,7 +331,10 @@ class FeatureStoreSpecBuilder:
         self._repo_path = repo_path
         return self
     
-    def set_project_name(self, project_name: str) -> 'FeatureStoreSpecBuilder':
+    def set_project_name(
+        self, 
+        project_name: str
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set project name.
         
@@ -316,7 +347,10 @@ class FeatureStoreSpecBuilder:
         self._project_name = project_name
         return self
     
-    def set_dataset_name(self, dataset_name: str) -> 'FeatureStoreSpecBuilder':
+    def set_dataset_name(
+        self, 
+        dataset_name: str
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set dataset name.
         
@@ -329,7 +363,10 @@ class FeatureStoreSpecBuilder:
         self._dataset_name = dataset_name
         return self
     
-    def set_n_features(self, n_features: int) -> 'FeatureStoreSpecBuilder':
+    def set_n_features(
+        self, 
+        n_features: int
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set number of features.
         
@@ -374,7 +411,10 @@ class FeatureStoreSpecBuilder:
         self._online_store_type = store_type
         return self
     
-    def set_feature_view(self, view_name: str) -> 'FeatureStoreSpecBuilder':
+    def set_feature_view(
+        self, 
+        view_name: str
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set feature view name.
         
@@ -387,7 +427,10 @@ class FeatureStoreSpecBuilder:
         self._feature_view_name = view_name
         return self
     
-    def use_full_names(self, use_full: bool = True) -> 'FeatureStoreSpecBuilder':
+    def use_full_names(
+        self, 
+        use_full: bool = True
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set whether to use full feature names.
         
@@ -400,7 +443,10 @@ class FeatureStoreSpecBuilder:
         self._use_full_feature_names = use_full
         return self
     
-    def set_timestamp(self, timestamp: Optional[datetime]) -> 'FeatureStoreSpecBuilder':
+    def set_timestamp(
+        self, 
+        timestamp: Optional[datetime]
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set timestamp for point-in-time retrieval.
         
@@ -413,7 +459,10 @@ class FeatureStoreSpecBuilder:
         self._timestamp = timestamp
         return self
     
-    def set_initialize_on_start(self, initialize: bool) -> 'FeatureStoreSpecBuilder':
+    def set_initialize_on_start(
+        self, 
+        initialize: bool
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set whether to initialize on workflow start.
         
@@ -426,7 +475,9 @@ class FeatureStoreSpecBuilder:
         self._initialize_on_start = initialize
         return self
     
-    def enable_materialization(self) -> 'FeatureStoreSpecBuilder':
+    def enable_materialization(
+        self
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Enable online store materialization.
         
@@ -436,7 +487,9 @@ class FeatureStoreSpecBuilder:
         self._materialize_online = True
         return self
     
-    def disable_materialization(self) -> 'FeatureStoreSpecBuilder':
+    def disable_materialization(
+        self
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Disable online store materialization.
         
@@ -446,7 +499,10 @@ class FeatureStoreSpecBuilder:
         self._materialize_online = False
         return self
     
-    def set_sample_indices(self, indices: Optional[List[int]]) -> 'FeatureStoreSpecBuilder':
+    def set_sample_indices(
+        self, 
+        indices: Optional[List[int]]
+    ) -> 'FeatureStoreSpecBuilder':
         """
         Set specific sample indices to retrieve.
         
@@ -459,10 +515,15 @@ class FeatureStoreSpecBuilder:
         self._sample_indices = indices
         return self
     
-    def build(self) -> FeatureStoreSpec:
+    def build(
+        self
+    ) -> FeatureStoreSpec:
         """
         Build and return FeatureStoreSpec instance.
         
+        Args:
+            None
+
         Returns:
             Configured FeatureStoreSpec
         """

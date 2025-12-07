@@ -1,7 +1,5 @@
 """
-Specifications package for ML workflow version 1.
-
-Core specifications for model and feature configuration.
+Specifications package 
 """
 
 from .model_spec import (

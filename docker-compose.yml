@@ -1,7 +1,6 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # MLflow Tracking Server
   mlflow:
     build: .
     container_name: mlflow-server
@@ -21,7 +20,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Training Application
   ml-training:
     build: .
     container_name: ml-training
@@ -37,28 +35,6 @@ services:
       mlflow:
         condition: service_healthy
     command: python application_training.py
-
-  # Inference API Server
-  ml-serving:
-    build: .
-    container_name: ml-serving
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    volumes:
-      - ./mlruns:/app/mlruns
-    ports:
-      - "8000:8000"
-    networks:
-      - ml-network
-    depends_on:
-      mlflow:
-        condition: service_healthy
-    command: >
-      python application_inference_serving.py serve
-      --model-name gradient_boosting_classifier_registered
-      --model-stage Production
-      --host 0.0.0.0
-      --port 8000
 
 networks:
   ml-network:

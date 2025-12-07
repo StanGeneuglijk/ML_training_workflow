@@ -1,7 +1,5 @@
 """
-Model specification module for ML workflow version 1.
-
-Core model specifications for classifier models only.
+Model specification module
 """
 from __future__ import annotations
 
@@ -10,38 +8,75 @@ import logging
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
-logger = logging.getLogger(__name__)
 
+import utils
+logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
 
 class ModelSpec(BaseModel, abc.ABC):
-    """Abstract base class for model specifications with Pydantic validation."""
+    """
+    Abstract base class for model specifications with Pydantic validation.
+    """
+    model_config = ConfigDict(
+        extra='forbid', 
+        validate_assignment=True
+    )
     
-    model_config = ConfigDict(extra='forbid', validate_assignment=True)
-    
-    model_name: str = Field(..., min_length=1, description="Name of the model")
-    enabled: bool = Field(default=True, description="Whether model is enabled")
-    random_state: Optional[int] = Field(default=None, description="Random state for reproducibility")
-    description: Optional[str] = Field(default=None, description="Description of the model")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    model_name: str = Field(
+        ..., 
+        min_length=1, 
+        description="Name of the model"
+    )
+    enabled: bool = Field(
+        default=True, 
+        description="Whether model is enabled"
+    )
+    random_state: Optional[int] = Field(
+        default=None, 
+        description="Random state for reproducibility"
+    )
+    description: Optional[str] = Field(
+        default=None, 
+        description="Description of the model"
+        )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Additional metadata"
+    )
     
     @field_validator('model_name')
     @classmethod
-    def validate_model_name(cls, v: str) -> str:
-        """Validate model name is not empty or whitespace."""
+    def validate_model_name(
+        cls, 
+        v: str
+    ) -> str:
+        """
+        Validate model name is not empty or whitespace.
+        
+        Args:
+            v: The value to validate
+        """
         if not v.strip():
             raise ValueError("Model name cannot be empty or whitespace")
         logger.debug(f"Validated model name: '{v.strip()}'")
         return v.strip()
     
     @abc.abstractmethod
-    def get_model_type(self) -> str:
-        """Return the model type identifier."""
+    def get_model_type(
+        self
+    ) -> str:
+        """
+        Return the model type identifier.
+        
+        Args:
+            None
+        """
         raise NotImplementedError
 
 
 class ClassifierModelSpec(ModelSpec):
-    """Configuration specification for classifier models with Pydantic validation."""
-    
+    """
+    Configuration specification for classifier models with Pydantic validation.
+    """
     algorithm: str = Field(
         default="gradient_boosting",
         description="Machine learning algorithm to use"
@@ -61,8 +96,16 @@ class ClassifierModelSpec(ModelSpec):
     
     @field_validator('algorithm')
     @classmethod
-    def validate_algorithm(cls, v: str) -> str:
-        """Validate that only gradient_boosting is supported."""
+    def validate_algorithm(
+        cls, 
+        v: str
+    ) -> str:
+        """
+        Validate that only gradient_boosting is supported.
+        
+        Args:
+            v: The value to validate
+        """
         if v != "gradient_boosting":
             raise ValueError(
                 f"Only 'gradient_boosting' algorithm is supported, got '{v}'"
@@ -71,11 +114,18 @@ class ClassifierModelSpec(ModelSpec):
     
     @field_validator('evaluation_metrics')
     @classmethod
-    def validate_metrics(cls, v: List[str]) -> List[str]:
-        """Validate evaluation metrics are valid."""
+    def validate_metrics(
+        cls, 
+        v: List[str]
+    ) -> List[str]:
+        """
+        Validate evaluation metrics are valid.
+        
+        Args:
+            v: The value to validate
+        """
         valid_metrics = [
-            "accuracy", "roc_auc", "f1_score", 
-            "precision", "recall", "neg_log_loss"
+            "accuracy", "roc_auc", "f1_score", "precision", "recall"
         ]
         for metric in v:
             if metric not in valid_metrics:
@@ -86,10 +136,17 @@ class ClassifierModelSpec(ModelSpec):
     
     @field_validator('hyperparameters')
     @classmethod
-    def validate_hyperparameters(cls, v: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate hyperparameters for gradient boosting."""
+    def validate_hyperparameters(
+        cls, 
+        v: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Validate hyperparameters for gradient boosting.
+        
+        Args:
+            v: The value to validate
+        """
         if not v:
-            # Return default hyperparameters if none provided
             return {
                 "n_estimators": 100,
                 "learning_rate": 0.1,
@@ -99,7 +156,6 @@ class ClassifierModelSpec(ModelSpec):
                 "subsample": 1.0,
             }
         
-        # Validate learning_rate
         if "learning_rate" in v:
             lr = v["learning_rate"]
             if not isinstance(lr, (int, float)):
@@ -107,7 +163,6 @@ class ClassifierModelSpec(ModelSpec):
             if lr <= 0 or lr > 1:
                 raise ValueError("learning_rate must be between 0 and 1 (exclusive of 0)")
         
-        # Validate n_estimators
         if "n_estimators" in v:
             n_est = v["n_estimators"]
             if not isinstance(n_est, int):
@@ -115,7 +170,6 @@ class ClassifierModelSpec(ModelSpec):
             if n_est <= 0:
                 raise ValueError("n_estimators must be a positive integer")
         
-        # Validate max_depth
         if "max_depth" in v:
             md = v["max_depth"]
             if not isinstance(md, int):
@@ -123,7 +177,6 @@ class ClassifierModelSpec(ModelSpec):
             if md <= 0:
                 raise ValueError("max_depth must be a positive integer")
         
-        # Validate min_samples_split
         if "min_samples_split" in v:
             mss = v["min_samples_split"]
             if not isinstance(mss, int):
@@ -131,7 +184,6 @@ class ClassifierModelSpec(ModelSpec):
             if mss < 2:
                 raise ValueError("min_samples_split must be at least 2")
         
-        # Validate min_samples_leaf
         if "min_samples_leaf" in v:
             msl = v["min_samples_leaf"]
             if not isinstance(msl, int):
@@ -139,7 +191,6 @@ class ClassifierModelSpec(ModelSpec):
             if msl < 1:
                 raise ValueError("min_samples_leaf must be at least 1")
         
-        # Validate subsample
         if "subsample" in v:
             ss = v["subsample"]
             if not isinstance(ss, (int, float)):
@@ -150,16 +201,34 @@ class ClassifierModelSpec(ModelSpec):
         logger.debug(f"Validated hyperparameters: {v}")
         return v
     
-    def get_model_type(self) -> str:
-        """Return 'classifier' as the model type."""
+    def get_model_type(
+        self
+    ) -> str:
+        """
+        Return 'classifier' as the model type.
+        
+        Args:
+            None
+
+        Returns:
+            The model type identifier
+        """
         return "classifier"
 
 
 class ModelSpecBuilder:
-    """Builder for creating model specifications."""
-    
-    def __init__(self) -> None:
-        """Initialize builder."""
+    """
+    Builder for creating model specifications.
+    """
+    def __init__(
+        self
+    ) -> None:
+        """
+        Initialize builder.
+        
+        Args:
+            None
+        """
         self.specs: List[ModelSpec] = []
     
     def add_classifier(
@@ -180,10 +249,15 @@ class ModelSpecBuilder:
         self.specs.append(ClassifierModelSpec(model_name=name, **kwargs))
         return self
     
-    def build(self) -> List[ModelSpec]:
+    def build(
+        self
+    ) -> List[ModelSpec]:
         """
         Build and return list of model specifications.
         
+        Args:
+            None
+
         Returns:
             List of model specs
         """
