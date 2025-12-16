@@ -1,5 +1,5 @@
-# Dockerfile for ML Workflow Version 1
-# SQLite-based ML workflow with MLflow tracking
+# Dockerfile for ML Training
+# Production-ready container for model training
 FROM python:3.13-slim
 
 # Set environment variables
@@ -32,11 +32,11 @@ RUN poetry config virtualenvs.create false && \
 # Copy application code
 COPY . .
 
-# Create directories
+# Create directories for MLflow models and logs
 RUN mkdir -p /app/data/database /app/mlruns /app/logs
 
-# Expose port
+# Expose port for MLflow UI
 EXPOSE 5000
 
-# Default command (MLflow UI)
+# Default command to start MLflow UI
 CMD ["mlflow", "ui", "--host", "0.0.0.0", "--port", "5000"]
