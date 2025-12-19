@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+import logging
 
 import utils
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)

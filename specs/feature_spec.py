@@ -7,8 +7,6 @@ import abc
 import logging
 from typing import Optional, Dict, Any, List, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-from utils
-
 
 import utils
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)
