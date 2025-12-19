@@ -5,7 +5,7 @@ Feature Store specification module
 from __future__ import annotations
 
 import logging
-from typing import Optional, List, Literal, Any
+from typing import Optional, List, Literal, Any, Dict
 from datetime import datetime
 
 from data.delta_lake import get_delta_path
@@ -54,9 +54,13 @@ class FeatureStoreSpec(BaseModel):
         default="file",
         description="Type of offline store"
     )
-    online_store_type: Optional[Any] = Field(
+    online_store_type: Optional[Literal["sqlite", "redis"]] = Field(
         default=None,
-        description="Type of online store"
+        description="Type of online store (sqlite for dev, redis for prod)"
+    )
+    online_store_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Configuration for online store (e.g., {'host': 'localhost', 'port': 6379} for Redis)"
     )
     feature_view_name: str = Field(
         default="classification_features",
@@ -284,6 +288,7 @@ class FeatureStoreSpecBuilder:
         self._n_features = None
         self._offline_store_type = "file"
         self._online_store_type = None
+        self._online_store_config = None
         self._feature_view_name = "classification_features"
         self._use_full_feature_names = False
         self._timestamp = None
@@ -397,18 +402,21 @@ class FeatureStoreSpecBuilder:
     
     def set_online_store(
         self,
-        store_type: Optional[Literal["sqlite", "redis"]]
+        store_type: Optional[Literal["sqlite", "redis"]],
+        config: Optional[Dict[str, Any]] = None
     ) -> 'FeatureStoreSpecBuilder':
         """
-        Set online store type.
+        Set online store type and configuration.
         
         Args:
-            store_type: Type of online store
+            store_type: Type of online store ("sqlite" or "redis")
+            config: Optional configuration dict (e.g., {"host": "localhost", "port": 6379} for Redis)
             
         Returns:
             Builder instance for method chaining
         """
         self._online_store_type = store_type
+        self._online_store_config = config
         return self
     
     def set_feature_view(
@@ -535,6 +543,7 @@ class FeatureStoreSpecBuilder:
             n_features=self._n_features,
             offline_store_type=self._offline_store_type,
             online_store_type=self._online_store_type,
+            online_store_config=self._online_store_config,
             feature_view_name=self._feature_view_name,
             use_full_feature_names=self._use_full_feature_names,
             timestamp=self._timestamp,

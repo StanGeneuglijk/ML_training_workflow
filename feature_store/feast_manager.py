@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import logging
 import shutil
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -46,8 +47,9 @@ class FeastManager:
         self.initialized = False 
         self.feature_views: dict[str, FeatureView] = {}
         self._last_provider: Optional[str] = None 
-
         self._last_offline_store_type: Optional[str] = None
+        self._last_online_store_type: Optional[str] = None
+        self._last_online_store_config: Optional[Dict[str, Any]] = None
         
         logger.info("FeastManager created: repo_path=%s, project_name=%s", str(self.repo_path), project_name)
     
@@ -69,6 +71,8 @@ class FeastManager:
         project_name: Optional[str] = None,
         provider: str = "local",
         offline_store_type: str = "file",
+        online_store_type: Optional[str] = None,
+        online_store_config: Optional[Dict[str, Any]] = None,
     ) -> FeatureStore:
         """
         Initialize feature store.
@@ -77,6 +81,8 @@ class FeastManager:
             project_name: Name of the project 
             provider: Provider type
             offline_store_type: Type of offline store
+            online_store_type: Type of online store ("sqlite" or "redis")
+            online_store_config: Optional configuration for online store
             
         Returns:
             Initialized FeatureStore instance
@@ -92,16 +98,20 @@ class FeastManager:
             project_name=project_name,
             provider=provider,
             offline_store_type=offline_store_type,
+            online_store_type=online_store_type,
+            online_store_config=online_store_config,
         )
         logger.info("Initializing feature store at: %s", self.repo_path)
 
         self.store = FeatureStore(repo_path=str(self.repo_path)) 
         self.initialized = True
         self._last_provider = provider
-
         self._last_offline_store_type = offline_store_type
+        self._last_online_store_type = online_store_type
+        self._last_online_store_config = online_store_config
 
-        logger.info("Feature store initialized successfully")
+        logger.info("Feature store initialized successfully (offline=%s, online=%s)", 
+                   offline_store_type, online_store_type or "None")
 
         return self.store
     
@@ -110,6 +120,8 @@ class FeastManager:
         project_name: Optional[str] = None,
         provider: str = "local",
         offline_store_type: str = "file",
+        online_store_type: Optional[str] = None,
+        online_store_config: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Create feature_store.yaml configuration file.
@@ -117,7 +129,9 @@ class FeastManager:
         Args:
             project_name: Name of the project 
             provider:  Provider type 
-            offline_store_type: Type of offline store 
+            offline_store_type: Type of offline store
+            online_store_type: Type of online store ("sqlite" or "redis")
+            online_store_config: Optional configuration for online store
         """
         project = project_name or self.project_name
 
@@ -125,17 +139,38 @@ class FeastManager:
         registry_path.parent.mkdir(parents=True, exist_ok=True)
                 
         yaml_path = self.repo_path / "feature_store.yaml"
-        yaml_content = f"""
-            project: {project}
-            registry: {str(registry_path)}
-            provider: {provider}
-            offline_store:
-                type: {offline_store_type}
-            entity_key_serialization_version: 2
-                """
+        
+        yaml_lines = [
+            f"project: {project}",
+            f"registry: {str(registry_path)}",
+            f"provider: {provider}",
+            "offline_store:",
+            f"    type: {offline_store_type}",
+            "entity_key_serialization_version: 2"
+        ]
+        
+        if online_store_type:
+            yaml_lines.append("online_store:")
+            if online_store_type == "sqlite":
+                sqlite_path = online_store_config.get("path") if online_store_config else None
+                if sqlite_path is None:
+                    sqlite_path = str(self.repo_path / "online_store.db")
+                yaml_lines.append("    type: sqlite")
+                yaml_lines.append(f"    path: {sqlite_path}")
+            elif online_store_type == "redis":
+                yaml_lines.append("    type: redis")
+                if online_store_config:
+                    if "host" in online_store_config:
+                        yaml_lines.append(f"    host: {online_store_config['host']}")
+                    if "port" in online_store_config:
+                        yaml_lines.append(f"    port: {online_store_config['port']}")
+                    if "db" in online_store_config:
+                        yaml_lines.append(f"    db: {online_store_config['db']}")
+        
+        yaml_content = "\n".join(yaml_lines) + "\n"
         yaml_path.write_text(yaml_content)
         
-        logger.info("Created configuration: %s", yaml_path)
+        logger.info("Created configuration: %s (online_store=%s)", yaml_path, online_store_type or "None")
     
     def register_feature_view(
         self,
@@ -285,6 +320,139 @@ class FeastManager:
 
         return entity_values
     
+    def get_online_features(
+        self,
+        entity_df: pd.DataFrame,
+        features: list[str],
+        feature_view_name: Optional[str] = None,
+        full_feature_names: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Get features from online store (low-latency for inference).
+        
+        Args:
+            entity_df: DataFrame with entity keys and event_timestamp
+            features: List of feature names (e.g., ["feature_0", "feature_1"])
+            feature_view_name: Feature view name to prefix features
+            full_feature_names: If True, use full feature names
+            
+        Returns:
+            DataFrame with features joined to entities
+            
+        Raises:
+            ValueError: If feature store is not initialized
+            RuntimeError: If online store is not configured
+        """
+        if self.store is None:
+            raise ValueError("Feature store must be initialized first")
+        
+        if self._last_online_store_type is None:
+            raise RuntimeError(
+                "Online store not configured. Initialize with online_store_type parameter."
+            )
+        
+        if feature_view_name and not full_feature_names:
+            features = [f"{feature_view_name}:{feat}" for feat in features]
+        
+        logger.info("Retrieving %s features from online store for %s entities", 
+                   len(features), len(entity_df))
+        
+        try:
+            features_df = self.store.get_online_features(
+                entity_rows=[dict(row) for _, row in entity_df.iterrows()],
+                features=features,
+                full_feature_names=full_feature_names,
+            ).to_df()
+            
+            logger.info("Retrieved features from online store: shape %s", features_df.shape)
+            return features_df
+        except Exception as e:
+            logger.error("Failed to retrieve features from online store: %s", e)
+            raise RuntimeError(f"Online feature retrieval failed: {e}") from e
+    
+    def materialize_features(
+        self,
+        feature_view_name: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> None:
+        """
+        Materialize features from offline store to online store.
+        
+        This syncs historical features to the online store for fast inference.
+        
+        Args:
+            feature_view_name: Name of the feature view to materialize
+            start_date: Start date for materialization window
+            end_date: End date for materialization window
+            
+        Raises:
+            ValueError: If feature store is not initialized
+            RuntimeError: If online store is not configured
+        """
+        if self.store is None:
+            raise ValueError("Feature store must be initialized first")
+        
+        if self._last_online_store_type is None:
+            raise RuntimeError(
+                "Online store not configured. Initialize with online_store_type parameter."
+            )
+        
+        logger.info(
+            "Materializing features for '%s' from %s to %s",
+            feature_view_name, start_date, end_date
+        )
+        
+        try:
+            self.store.materialize(
+                start_date=start_date,
+                end_date=end_date,
+                feature_views=[feature_view_name]
+            )
+            logger.info("Materialization completed successfully")
+        except Exception as e:
+            logger.error("Materialization failed: %s", e)
+            raise RuntimeError(f"Materialization failed: {e}") from e
+    
+    def materialize_incremental(
+        self,
+        feature_view_name: str,
+        end_date: Optional[datetime] = None,
+    ) -> None:
+        """
+        Incrementally materialize features (from last materialized date to now).
+        
+        Args:
+            feature_view_name: Name of the feature view to materialize
+            end_date: End date (defaults to now)
+            
+        Raises:
+            ValueError: If feature store is not initialized
+            RuntimeError: If online store is not configured
+        """
+        if self.store is None:
+            raise ValueError("Feature store must be initialized first")
+        
+        if self._last_online_store_type is None:
+            raise RuntimeError(
+                "Online store not configured. Initialize with online_store_type parameter."
+            )
+        
+        if end_date is None:
+            end_date = datetime.utcnow()
+        
+        logger.info("Incremental materialization for '%s' until %s", feature_view_name, end_date)
+        
+        try:
+            self.store.materialize_incremental(
+                end_date=end_date,
+                feature_views=[feature_view_name]
+            )
+            logger.info("Incremental materialization completed successfully")
+        except Exception as e:
+            logger.error("Incremental materialization failed: %s", e)
+            raise RuntimeError(f"Incremental materialization failed: {e}") from e
+    
     def cleanup(
         self
     ) -> None:
@@ -302,6 +470,8 @@ def create_feast_manager(
     initialize: bool = True,
     provider: str = "local",
     offline_store_type: str = "file",
+    online_store_type: Optional[str] = None,
+    online_store_config: Optional[Dict[str, Any]] = None,
 ) -> FeastManager:
     """
     Create a FeastManager.
@@ -311,23 +481,28 @@ def create_feast_manager(
         project_name: Name of the project 
         initialize: Auto-initialize feature store 
         provider: Provider type
-        offline_store_type: Type of offline store 
+        offline_store_type: Type of offline store
+        online_store_type: Type of online store ("sqlite" or "redis")
+        online_store_config: Optional configuration for online store
         
     Returns:
         FeastManager instance
         
     Example:
+        >>> # Offline only (training)
         >>> manager = create_feast_manager(initialize=True)
-        >>> feature_view = create_feature_view(...)
-        >>> manager.register_feature_view(feature_view)
-        >>> entity_df = pd.DataFrame({
-        ...     "sample_index": [0, 1, 2],
-        ...     "event_timestamp": [pd.Timestamp.now()] * 3
-        ... })
-        >>> X, y = manager.get_training_data(
-        ...     entity_df=entity_df,
-        ...     feature_names=["feature_0", "feature_1"],
-        ...     target_name="target"
+        >>> 
+        >>> # With online store (inference)
+        >>> manager = create_feast_manager(
+        ...     initialize=True,
+        ...     online_store_type="sqlite"
+        ... )
+        >>> 
+        >>> # With Redis online store
+        >>> manager = create_feast_manager(
+        ...     initialize=True,
+        ...     online_store_type="redis",
+        ...     online_store_config={"host": "localhost", "port": 6379}
         ... )
     """
     manager = FeastManager(repo_path=repo_path, project_name=project_name)
@@ -336,6 +511,8 @@ def create_feast_manager(
         manager.initialize(
             provider=provider,
             offline_store_type=offline_store_type,
+            online_store_type=online_store_type,
+            online_store_config=online_store_config,
         )
     
     return manager
