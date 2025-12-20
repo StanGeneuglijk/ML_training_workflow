@@ -56,7 +56,7 @@ ML_workflow_training/
 ├── data/                    # Data generation and loading
 ├── specs/                   # Pydantic specifications (config layer)
 ├── module/                  # ML modules (implementation layer)
-├── src/                     # Workflow orchestration
+├── src_training/            # Workflow orchestration
 ├── feature_store/           # Feast integration (optional)
 ├── tests/                   # Comprehensive test suite
 ├── docs/                    # Technical documentation
@@ -73,7 +73,7 @@ ML_workflow_training/
 Type-safe configuration with Pydantic validation:
 
 ```python
-from specs import FeatureSpecBuilder, ModelSpecBuilder
+from specs_training import FeatureSpecBuilder, ModelSpecBuilder
 
 feature_specs = FeatureSpecBuilder()\
     .add_numeric_group(["age", "income"], scaler_type="standard")\
@@ -107,7 +107,7 @@ predictions = pipeline.predict(X_test)
 Coordinate complete ML workflow:
 
 ```python
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 results = run_ml_workflow(
     feature_specs=feature_specs,
@@ -125,13 +125,13 @@ results = run_ml_workflow(
 ## Workflow Example
 
 ```python
-from specs import (
+from specs_training import (
     FeatureSpecBuilder,
     ModelSpecBuilder,
     GridSearchSpecBuilder,
     MLflowSpecBuilder
 )
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 from data import load_data
 
 # Load data

@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 
-from specs.model_spec import ClassifierModelSpec
+from specs_training.model_spec import ClassifierModelSpec
 import utils
 
 

@@ -10,7 +10,7 @@ import pytest
 from sklearn.base import BaseEstimator, ClassifierMixin, clone
 
 from module.classifier import GradientBoostingClassifierImpl, create_classifier
-from specs import ClassifierModelSpec
+from specs_training import ClassifierModelSpec
 
 
 def _fit_classifier(spec: ClassifierModelSpec, sample):

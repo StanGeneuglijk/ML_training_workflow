@@ -11,7 +11,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from specs.calibration_spec import ClassifierCalibrationSpec, CalibrationSpec
+from specs_training.calibration_spec import ClassifierCalibrationSpec, CalibrationSpec
 import utils
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specs.feature_spec import (
+from specs_training.feature_spec import (
     FeatureSpec,
     NumericFeatureSpec,
     CategoricalFeatureSpec,

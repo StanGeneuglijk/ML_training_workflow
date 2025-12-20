@@ -40,10 +40,10 @@ ml-train = "application_training:main"
 
 [tool.poetry]
 packages = [
-    { include = "specs" },
+    { include = "specs_training" },
     { include = "module" },
     { include = "data" },
-    { include = "src" },
+    { include = "src_training" },
     { include = "feature_store" },
 ]
 
@@ -60,9 +60,9 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
-    "--cov=specs",
+    "--cov=specs_training",
     "--cov=module",
-    "--cov=src",
+    "--cov=src_training",
     "--cov=data",
     "--cov=feature_store",
     "--cov-report=term-missing",
@@ -130,7 +130,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.coverage.run]
-source = ["specs", "module", "src", "data", "feature_store"]
+source = ["specs_training", "module", "src_training", "data", "feature_store"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

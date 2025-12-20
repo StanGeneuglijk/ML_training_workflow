@@ -18,13 +18,13 @@ import pytest
 import shutil
 
 from data import load_data
-from specs import (
+from specs_training import (
     ClassifierCalibrationSpec,
     FeatureSpecBuilder,
     GridSearchSpec,
     ModelSpecBuilder,
 )
-from src.orchestrator import get_workflow_summary, run_ml_workflow
+from src_training.orchestrator import get_workflow_summary, run_ml_workflow
 
 
 @pytest.mark.integration

@@ -8,12 +8,12 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from src.orchestrator import (
+from src_training.orchestrator import (
     build_ml_pipeline,
     get_workflow_summary,
     run_ml_workflow,
 )
-from specs import FeatureSpecBuilder, ModelSpecBuilder
+from specs_training import FeatureSpecBuilder, ModelSpecBuilder
 
 
 @pytest.mark.unit

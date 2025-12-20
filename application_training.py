@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from specs import (
+from specs_training import (
     FeatureSpec,
     FeatureSpecBuilder,
     FeatureStoreSpec,
@@ -17,7 +17,7 @@ from specs import (
     ModelSpecBuilder,
     ClassifierCalibrationSpec,
 )
-from src.orchestrator import run_ml_workflow, get_workflow_summary
+from src_training.orchestrator import run_ml_workflow, get_workflow_summary
 from data import load_data
 
 import logging

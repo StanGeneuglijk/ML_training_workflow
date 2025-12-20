@@ -84,7 +84,7 @@ from data import (
 
 ```python
 from data import load_data
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 X, y = load_data("classification_data")
 

@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 
-from specs.feature_spec import FeatureSpec, NumericFeatureSpec, CategoricalFeatureSpec
+from specs_training.feature_spec import FeatureSpec, NumericFeatureSpec, CategoricalFeatureSpec
 
 import utils
 logger = utils.setup_logging(level=logging.INFO, logger_name=__name__)

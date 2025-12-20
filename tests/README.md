@@ -131,7 +131,7 @@ Test complete workflows:
 
 ```bash
 python3 -m pytest tests/ \
-    --cov=module --cov=specs --cov=src --cov=data --cov=feature_store \
+    --cov=module --cov=specs --cov=src_training --cov=data --cov=feature_store \
     --cov-report=html --cov-report=term
 ```
 

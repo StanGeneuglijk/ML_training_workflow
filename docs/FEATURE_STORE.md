@@ -49,7 +49,7 @@ poetry run python data/generate_delta_lake.py
 ### Step 2: Configure
 
 ```python
-from specs import FeatureStoreSpecBuilder
+from specs_training import FeatureStoreSpecBuilder
 
 feature_store_spec = (
     FeatureStoreSpecBuilder()
@@ -65,7 +65,7 @@ feature_store_spec = (
 ### Step 3: Use in Training
 
 ```python
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 results = run_ml_workflow(
     feature_specs=feature_specs,

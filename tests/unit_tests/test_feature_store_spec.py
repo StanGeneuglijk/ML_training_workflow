@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 from datetime import datetime
 
-from specs import FeatureStoreSpec, FeatureStoreSpecBuilder
+from specs_training import FeatureStoreSpec, FeatureStoreSpecBuilder
 
 
 @pytest.mark.unit
@@ -299,8 +299,8 @@ class TestFeatureStoreSpec:
 
         spec = FeatureStoreSpec(dataset_name="test_dataset")
 
-        with patch("specs.feature_store_spec.get_delta_path") as mock_path, patch(
-            "specs.feature_store_spec.DeltaTable"
+        with patch("specs_training.feature_store_spec.get_delta_path") as mock_path, patch(
+            "specs_training.feature_store_spec.DeltaTable"
         ) as mock_delta:
             mock_path.return_value = Path("/fake/path")
             mock_dt = Mock()

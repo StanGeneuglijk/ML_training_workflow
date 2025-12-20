@@ -44,7 +44,7 @@ def sample_classification_array():
 @pytest.fixture
 def simple_feature_specs():
     """Create simple feature specifications for testing."""
-    from specs import FeatureSpecBuilder
+    from specs_training import FeatureSpecBuilder
 
     builder = FeatureSpecBuilder()
     specs = builder.add_numeric_group(
@@ -58,7 +58,7 @@ def simple_feature_specs():
 @pytest.fixture
 def simple_model_spec():
     """Create simple model specification for testing."""
-    from specs import ModelSpecBuilder
+    from specs_training import ModelSpecBuilder
 
     builder = ModelSpecBuilder()
     spec = builder.add_classifier(
@@ -71,7 +71,7 @@ def simple_model_spec():
 @pytest.fixture
 def numeric_spec_default():
     """Create default numeric feature spec with imputer and scaler."""
-    from specs import NumericFeatureSpec
+    from specs_training import NumericFeatureSpec
 
     return NumericFeatureSpec(
         feature_name="num_feature",
@@ -83,7 +83,7 @@ def numeric_spec_default():
 @pytest.fixture
 def numeric_spec_no_preprocessing():
     """Create numeric feature spec with all preprocessing disabled."""
-    from specs import NumericFeatureSpec
+    from specs_training import NumericFeatureSpec
 
     return NumericFeatureSpec(
         feature_name="num_feature",
@@ -102,7 +102,7 @@ def numeric_data():
 @pytest.fixture
 def categorical_spec_default():
     """Create default categorical feature spec."""
-    from specs import CategoricalFeatureSpec
+    from specs_training import CategoricalFeatureSpec
 
     return CategoricalFeatureSpec(
         feature_name="cat_feature",

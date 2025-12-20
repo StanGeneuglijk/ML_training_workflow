@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specs.model_spec import (
+from specs_training.model_spec import (
     ModelSpec,
     ClassifierModelSpec,
     ModelSpecBuilder,

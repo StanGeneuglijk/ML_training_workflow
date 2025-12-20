@@ -16,7 +16,7 @@ from module.pre_processing import (
     FeatureSpecPipeline,
     create_preprocessing_pipeline,
 )
-from specs import NumericFeatureSpec, CategoricalFeatureSpec
+from specs_training import NumericFeatureSpec, CategoricalFeatureSpec
 
 
 @pytest.mark.unit

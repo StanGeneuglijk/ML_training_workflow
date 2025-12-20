@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specs.params_tuning_spec import (
+from specs_training.params_tuning_spec import (
     ParamTuningSpec,
     GridSearchSpec,
     RandomSearchSpec,

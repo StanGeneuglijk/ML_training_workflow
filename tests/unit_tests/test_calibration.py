@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from module.calibration import ClassifierCalibration, create_calibration
-from specs import CalibrationSpec, ClassifierCalibrationSpec
+from specs_training import CalibrationSpec, ClassifierCalibrationSpec
 
 
 def _make_data(n_samples: int = 120):

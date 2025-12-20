@@ -12,7 +12,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from module.params_tuning import GridSearch, RandomSearch, create_tuning
-from specs import GridSearchSpec, RandomSearchSpec
+from specs_training import GridSearchSpec, RandomSearchSpec
 
 
 def _make_data(n_samples: int = 120):

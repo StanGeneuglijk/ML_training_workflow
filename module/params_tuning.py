@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, KFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from specs.params_tuning_spec import ParamTuningSpec, GridSearchSpec, RandomSearchSpec
+from specs_training.params_tuning_spec import ParamTuningSpec, GridSearchSpec, RandomSearchSpec
 
 import utils
 

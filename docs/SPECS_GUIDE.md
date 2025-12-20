@@ -67,7 +67,7 @@ spec = ModelSpecBuilder()\
 **Purpose:** Configure feature preprocessing
 
 ```python
-from specs import FeatureSpecBuilder
+from specs_training import FeatureSpecBuilder
 
 feature_specs = (
     FeatureSpecBuilder()
@@ -89,7 +89,7 @@ feature_specs = (
 **Purpose:** Configure ML model
 
 ```python
-from specs import ModelSpecBuilder
+from specs_training import ModelSpecBuilder
 
 model_spec = (
     ModelSpecBuilder()
@@ -106,7 +106,7 @@ model_spec = (
 **Purpose:** Configure hyperparameter tuning
 
 ```python
-from specs import GridSearchSpecBuilder
+from specs_training import GridSearchSpecBuilder
 
 tuning_spec = (
     GridSearchSpecBuilder()
@@ -123,7 +123,7 @@ tuning_spec = (
 **Purpose:** Configure probability calibration
 
 ```python
-from specs import CalibrationSpecBuilder
+from specs_training import CalibrationSpecBuilder
 
 calib_spec = (
     CalibrationSpecBuilder()
@@ -138,7 +138,7 @@ calib_spec = (
 **Purpose:** Configure experiment tracking
 
 ```python
-from specs import MLflowSpecBuilder
+from specs_training import MLflowSpecBuilder
 
 mlflow_spec = (
     MLflowSpecBuilder()
@@ -154,7 +154,7 @@ mlflow_spec = (
 **Purpose:** Configure feature store
 
 ```python
-from specs import FeatureStoreSpecBuilder
+from specs_training import FeatureStoreSpecBuilder
 
 feature_store_spec = (
     FeatureStoreSpecBuilder()
@@ -175,7 +175,7 @@ feature_specs = FeatureSpecBuilder().add_numeric_group(...).build()
 model_spec = ModelSpecBuilder().add_classifier(...).build()[0]
 
 # 2. Use in workflow
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 results = run_ml_workflow(
     feature_specs=feature_specs,

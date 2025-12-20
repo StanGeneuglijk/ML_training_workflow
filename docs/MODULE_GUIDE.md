@@ -36,7 +36,7 @@ module/
 
 ```python
 from module.classifier import GradientBoostingClassifierImpl
-from specs import ModelSpecBuilder
+from specs_training import ModelSpecBuilder
 
 model_spec = ModelSpecBuilder().add_classifier("gb_model").build()[0]
 classifier = GradientBoostingClassifierImpl(model_spec)
@@ -133,7 +133,7 @@ predictions = ml_pipeline.predict(X_test)
 ### With Orchestrator
 
 ```python
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 results = run_ml_workflow(
     feature_specs=feature_specs,

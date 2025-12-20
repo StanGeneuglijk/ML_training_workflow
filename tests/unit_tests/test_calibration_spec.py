@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specs.calibration_spec import (
+from specs_training.calibration_spec import (
     CalibrationSpec,
     ClassifierCalibrationSpec,
     CalibrationSpecBuilder,

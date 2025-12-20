@@ -94,4 +94,3 @@ docker-compose restart mlflow
 
 ---
 
-**Ready for containerized deployment!** 🐳

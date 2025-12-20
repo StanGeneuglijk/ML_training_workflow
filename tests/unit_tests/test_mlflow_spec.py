@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from specs.mlflow_spec import (
+from specs_training.mlflow_spec import (
     MLflowSpec,
     MLflowSpecBuilder,
     create_default_mlflow_spec,

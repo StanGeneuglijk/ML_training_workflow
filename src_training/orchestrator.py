@@ -10,13 +10,13 @@ from dataclasses import dataclass, field
 from sklearn.pipeline import Pipeline as SklearnPipeline
 from sklearn.model_selection import cross_val_score, train_test_split
 
-from specs import FeatureSpec, ClassifierModelSpec
-from specs import ParamTuningSpec
+from specs_training import FeatureSpec, ClassifierModelSpec
+from specs_training import ParamTuningSpec
 from module.params_tuning import create_tuning
-from specs import CalibrationSpec
+from specs_training import CalibrationSpec
 from module.calibration import create_calibration
-from specs import MLflowSpec
-from specs import FeatureStoreSpec
+from specs_training import MLflowSpec
+from specs_training import FeatureStoreSpec
 from module.pre_processing import FeatureSpecPipeline
 from module.classifier import GradientBoostingClassifierImpl
 from module.mlflow_tracker import MLflowTracker, create_mlflow_tracker
@@ -442,7 +442,7 @@ def build_ml_pipeline(
         Sklearn pipeline with preprocessing and model
         
     Eg.:
-        >>> from specs import FeatureSpecBuilder, ModelSpecBuilder
+        >>> from specs_training import FeatureSpecBuilder, ModelSpecBuilder
         >>> feature_specs = FeatureSpecBuilder().add_numeric_group(['age', 'income']).build()
         >>> model_spec = ModelSpecBuilder().add_classifier('gb_classifier').build()[0]
         >>> pipeline = build_ml_pipeline(feature_specs, model_spec)
@@ -501,7 +501,7 @@ def run_ml_workflow(
         Dictionary containing pipeline, metrics, and results
         
     Example:
-        >>> from specs import MLflowSpec
+        >>> from specs_training import MLflowSpec
         >>> mlflow_spec = MLflowSpec(enabled=True, experiment_name="my_exp", register_model=True)
         >>> results = run_ml_workflow(
         ...     feature_specs=feature_specs,

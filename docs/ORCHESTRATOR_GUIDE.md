@@ -6,7 +6,7 @@
 
 ## Overview
 
-The `src/orchestrator.py` is the central coordinator that orchestrates preprocessing, training, tuning, calibration, validation, and MLflow tracking.
+The `src_training/orchestrator.py` is the central coordinator that orchestrates preprocessing, training, tuning, calibration, validation, and MLflow tracking.
 
 ### Design
 
@@ -23,7 +23,7 @@ The `src/orchestrator.py` is the central coordinator that orchestrates preproces
 **Purpose:** Construct sklearn pipeline from specs
 
 ```python
-from src.orchestrator import build_ml_pipeline
+from src_training.orchestrator import build_ml_pipeline
 
 pipeline = build_ml_pipeline(
     feature_specs=feature_specs,
@@ -37,7 +37,7 @@ pipeline = build_ml_pipeline(
 **Purpose:** Execute complete ML workflow
 
 ```python
-from src.orchestrator import run_ml_workflow
+from src_training.orchestrator import run_ml_workflow
 
 results = run_ml_workflow(
     feature_specs=feature_specs,
@@ -64,7 +64,7 @@ results = run_ml_workflow(
 **Purpose:** Format results for display
 
 ```python
-from src.orchestrator import get_workflow_summary
+from src_training.orchestrator import get_workflow_summary
 
 summary = get_workflow_summary(results)
 print(summary)
