@@ -6,18 +6,6 @@
 
 ---
 
-## Overview
-
-A machine learning workflow framework with:
-
-- ✅ **Spec-driven architecture** - Configuration via Pydantic validation
-- ✅ **MLflow integration** - Experiment tracking and model registry
-- ✅ **Modular design** - Composable, testable components
-- ✅ **Type safety** - Full type hints and validation
-- ✅ **Production patterns** - Error handling, logging, testing
-
----
-
 ## Quick Start
 
 ### Prerequisites
